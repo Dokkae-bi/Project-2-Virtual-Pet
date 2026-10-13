@@ -49,6 +49,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Kept in this file (rather than cmake/stm32cubemx/CMakeLists.txt) because
     # CubeMX regenerates the latter and would drop the entry.
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_core.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_anim.c
 )
 
 # Add include paths
