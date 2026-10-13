@@ -159,4 +159,34 @@ void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
   }
 }
 
+/**
+  * @brief ADC MSP init for the potentiometer: PA3 = ADC1_IN8.
+  *        The ADC kernel clock is SYSCLK (56.8 MHz); MX_ADC1_Init divides it
+  *        by 4 to 14.2 MHz, inside the 80 MHz limit.
+  */
+void HAL_ADC_MspInit(ADC_HandleTypeDef *hadc)
+{
+  if (hadc->Instance == ADC1)
+  {
+    RCC_PeriphCLKInitTypeDef clk = {0};
+    clk.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+    clk.AdcClockSelection    = RCC_ADCCLKSOURCE_SYSCLK;
+    if (HAL_RCCEx_PeriphCLKConfig(&clk) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_RCC_ADC_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+
+    /* On the L496 a pin only reaches the ADC once its ASCR switch is closed,
+       which is what ANALOG_ADC_CONTROL does; plain ANALOG reads nothing. */
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+    GPIO_InitStruct.Pin  = GPIO_PIN_3;
+    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG_ADC_CONTROL;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  }
+}
+
 /* USER CODE END 1 */
