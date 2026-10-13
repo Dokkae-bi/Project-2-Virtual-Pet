@@ -18,7 +18,7 @@ reconstructed honestly at the end.
 
 | Tool | Areas assisted |
 |---|---|
-| _TBD_ | _TBD_ |
+| Claude Code (Claude Opus 5.5) | MPU-6050 shake sensor: the plan, `pet_shake`, `mpu6050`/`mpu6050_regs`, I2C1 bring-up, the main-loop poll, their host tests (Malek Albdoor) |
 | _TBD_ | _TBD_ |
 
 ---
@@ -68,6 +68,39 @@ reconfigures `PA9` and the display goes blank. The BSP header flags this directl
 
 **Resolution:** USB host stays uninitialised; `LPUART1` (`PG7`/`PG8`, already wired
 to the ST-LINK virtual COM port) is used for serial logging instead.
+
+### Case 4 — feature branch cut from the wrong base (corrected)
+
+**Suggested:** the AI assistant created `feature/i2c-gyro` from the local `main`.
+
+**Problem:** `main` had just been pulled and was now the bare instructor baseline;
+the pet implementation had moved to the `pet` branch. The new branch therefore had
+none of the pet code. It was caught when files the plan depended on
+(`pet_core.h`, `tests/`) were missing from the working tree.
+
+**Resolution:** the branch had no commits yet, so it was re-cut from `origin/pet`
+before any code was written.
+
+**Verified by:** `git log`/`ls` on the new base showing `pet_ctl.h` and the wired
+`main.c`.
+
+### Case 5 — terminal build used the wrong compiler (corrected)
+
+**Suggested:** the README's terminal configure command,
+`cmake -S . -B build/Debug ... -DCMAKE_TOOLCHAIN_FILE=cmake/gcc-arm-none-eabi.cmake`.
+
+**Problem:** run from a plain shell it found Homebrew's `arm-none-eabi-gcc` 16.2,
+which ships no C library, and failed with `stdint.h: No such file or directory`.
+
+**Resolution:** put the ST bundle's GCC 14.3.1 first on `PATH`; the README build
+section now says so.
+
+**Verified by:** clean firmware build, no warnings.
+
+**Still unverified on hardware** (the AI's values, checked against documents only):
+the I2C1 `TIMING` value `0x60420F13`, `PB8`/`PB9` as `AF4` for I2C1, the clone
+`WHO_AM_I` values `0x70`/`0x72`, and the shake thresholds. The hardware checklist
+in `TODO.md` §2 covers each one.
 
 ---
 

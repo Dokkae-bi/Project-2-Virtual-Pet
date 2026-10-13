@@ -55,6 +55,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_hud.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_ctl.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_screen.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_shake.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/mpu6050_regs.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/mpu6050.c
     # Generated RGB565 sprite assets (produced by tools/png_to_rgb565.py).
     ${CMAKE_SOURCE_DIR}/sprites/slime_content.c
     ${CMAKE_SOURCE_DIR}/sprites/slime_delighted.c

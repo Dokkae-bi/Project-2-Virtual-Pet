@@ -40,12 +40,18 @@
 #include "pet_ctl.h"
 #include "pet_ui.h"
 #include "pet_screen.h"
+#include "pet_shake.h"
+#include "mpu6050.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
+/* I2C1 for the MPU-6050 shake sensor. Kept in a USER CODE block because the
+   .ioc does not know about I2C1, so CubeMX would otherwise delete it. */
+I2C_HandleTypeDef hi2c1;
+
 /* Pet state. static because the stack is only 2 KB. */
 static pet_ctl_t g_pet;
 static pet_ui_t  g_ui;
@@ -54,6 +60,15 @@ static pet_ui_t  g_ui;
    is wired up - see TODO.md. pet_ui_set_portion() puts the same value in the
    menu, so what the player sees is what the pet actually gets. */
 static const uint8_t g_portion = PET_FEED_PORTION_MIN;
+
+/* MPU-6050 shake sensor. LD2 shows whether it is answering. */
+#define SHAKE_SAMPLE_MS  10u     /* 100 Hz, matches the sensor's output rate */
+#define SHAKE_RETRY_MS   1000u   /* how often to look for a missing sensor */
+#define SHAKE_AWAKE_MS   1000u   /* how often to check it hasn't silently reset */
+static pet_shake_t g_shake;
+static bool        g_shake_online   = false;
+static uint32_t    g_shake_next_ms  = 0u;
+static uint32_t    g_shake_awake_ms = 0u;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -61,7 +76,11 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
+static void MX_I2C1_Init(void);
 static pet_input_t Input_Read(void);
+static bool Shake_Poll(uint32_t now);
+static void Shake_Offline(uint32_t now);
+static void I2C1_Recover(void);
 /* USER CODE END PFP */
 
 /* Joystick (B1) bit flags returned by Joystick_Read() */
@@ -116,6 +135,161 @@ static pet_input_t Input_Read(void)
 
   return event;
 }
+
+/**
+  * @brief  Sample the MPU-6050 when one is due and report a completed shake.
+  *
+  * A missing or unplugged sensor is not an error for the pet: it just keeps
+  * running without shake input, LD2 goes off, and the sensor is looked for again
+  * once a second, so plugging it back in recovers without a reset.
+  *
+  * Two quieter failures are handled too. A glitch on the wires can leave the
+  * I2C bus looking busy forever, so every failure also frees the bus and
+  * restarts I2C1 (I2C1_Recover). And a sensor that loses power for a moment
+  * comes back asleep, reading zeros while still answering, so once a second it
+  * is asked whether it is still awake.
+  *
+  * @retval true on the one call where a shake completes.
+  */
+static bool Shake_Poll(uint32_t now)
+{
+  if ((int32_t)(now - g_shake_next_ms) < 0)
+  {
+    return false;
+  }
+
+  if (!g_shake_online)
+  {
+    if (mpu6050_init(&hi2c1) != HAL_OK)
+    {
+      Shake_Offline(now);
+      return false;
+    }
+    g_shake_online   = true;
+    g_shake_next_ms  = now + SHAKE_SAMPLE_MS;
+    g_shake_awake_ms = now + SHAKE_AWAKE_MS;
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_SET);
+    pet_shake_init(&g_shake);
+    return false;
+  }
+
+  if ((int32_t)(now - g_shake_awake_ms) >= 0)
+  {
+    if (mpu6050_check_awake(&hi2c1) != HAL_OK)
+    {
+      Shake_Offline(now);
+      return false;
+    }
+    g_shake_awake_ms = now + SHAKE_AWAKE_MS;
+  }
+
+  int16_t accel[3];
+  if (mpu6050_read_accel(&hi2c1, accel) != HAL_OK)
+  {
+    Shake_Offline(now);
+    return false;
+  }
+
+  g_shake_next_ms = now + SHAKE_SAMPLE_MS;
+  return pet_shake_update(&g_shake, accel[0], accel[1], accel[2], now);
+}
+
+/**
+  * @brief  Mark the sensor missing, turn LD2 off, and get the bus ready to look
+  *         for it again in SHAKE_RETRY_MS.
+  */
+static void Shake_Offline(uint32_t now)
+{
+  g_shake_online  = false;
+  g_shake_next_ms = now + SHAKE_RETRY_MS;
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  I2C1_Recover();
+}
+
+/* Roughly 20 us at 56.8 MHz: well over the 5 us an I2C half-clock needs. */
+static void I2C1_BusDelay(void)
+{
+  for (volatile uint32_t n = 0u; n < 300u; n++) { }
+}
+
+/**
+  * @brief  Free a stuck I2C bus and restart I2C1.
+  *
+  * HAL clears its own state after a failed transfer but leaves the peripheral
+  * enabled, and its BUSY flag only clears on a STOP. A START with no STOP (a
+  * wire glitch, or a reset in the middle of a read) therefore wedges it, and
+  * every later call waits out HAL's 25 ms busy timeout and fails. A slave
+  * caught mid-byte can also hold SDA low indefinitely.
+  *
+  * The standard fix (I2C spec, "bus clear"): take PB8/PB9 as plain open-drain
+  * GPIO, clock SCL nine times so any slave finishes its byte and lets go of SDA,
+  * send a STOP, then re-initialise I2C1, which puts the pins back on AF4.
+  * Takes well under a millisecond and runs at most once per SHAKE_RETRY_MS.
+  */
+static void I2C1_Recover(void)
+{
+  (void)HAL_I2C_DeInit(&hi2c1);
+
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
+  GPIO_InitStruct.Pin   = GPIO_PIN_8 | GPIO_PIN_9;
+  GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
+  GPIO_InitStruct.Pull  = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  for (uint32_t i = 0u; i < 9u; i++)
+  {
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);   /* SCL low  */
+    I2C1_BusDelay();
+    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);     /* SCL high */
+    I2C1_BusDelay();
+  }
+
+  /* STOP: SDA rises while SCL is high. */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
+  I2C1_BusDelay();
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
+  I2C1_BusDelay();
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
+  I2C1_BusDelay();
+
+  MX_I2C1_Init();
+}
+
+/**
+  * @brief I2C1 Initialization Function - the MPU-6050 shake sensor.
+  *        SCL = PB8, SDA = PB9, 100 kHz standard mode.
+  *
+  * TIMING 0x60420F13 is the RM0351 100 kHz table entry (SCLL 0x13, SCLH 0x0F,
+  * SDADEL 2, SCLDEL 4) with PRESC raised from 3 to 6. That keeps the prescaled
+  * clock near 4 MHz from PCLK1 = 28.4 MHz (28.4 / 7 = 4.06 MHz).
+  *
+  * HAL_I2C_Init only fails on bad parameters, never because the sensor is
+  * missing, so unplugging the GY-521 can't land in Error_Handler from here.
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+  hi2c1.Instance              = I2C1;
+  hi2c1.Init.Timing           = 0x60420F13;
+  hi2c1.Init.OwnAddress1      = 0;
+  hi2c1.Init.AddressingMode   = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode  = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2      = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode  = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode    = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -138,6 +312,8 @@ int main(void)
   ILI9341_Init(&hspi1);
 
   /* USER CODE BEGIN 2 */
+  MX_I2C1_Init();
+
   pet_ctl_init(&g_pet, HAL_GetTick());
   pet_ui_init(&g_ui);
   pet_ui_set_portion(&g_ui, g_portion);
@@ -166,6 +342,15 @@ int main(void)
     else if (result.action != PET_ACTION_NONE)
     {
       (void)pet_ctl_action(&g_pet, result.action, g_portion, now);
+    }
+
+    /* Shaking the MPU-6050 plays with the pet, the same as choosing Play from
+       the menu. Ignored while the menu is open, so it can't act behind it. A
+       dead or runaway pet refuses it inside pet_ctl_action. Polled every pass
+       so a shake made with the menu open is dropped rather than queued. */
+    if (Shake_Poll(now) && (pet_ui_screen(&g_ui) == PET_SCREEN_PET))
+    {
+      (void)pet_ctl_action(&g_pet, PET_ACTION_PLAY, 1u, now);
     }
 
     pet_screen_update(&g_pet.pet, &g_pet.anim, &g_ui);
@@ -204,6 +389,7 @@ static void MX_SPI1_Init(void)
     Error_Handler();
   }
 }
+
 
 /**
   * @brief System Clock Configuration

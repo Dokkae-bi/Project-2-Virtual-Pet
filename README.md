@@ -4,9 +4,10 @@ Tamagotchi-style virtual pet running on a **NUCLEO-L496ZG-P** with an
 **X-NUCLEO-GFX01M2** (2.2" QVGA ILI9341 SPI TFT + joystick) display expansion board.
 
 > **Status:** **the pet runs.** `main.c` starts it, the joystick drives the menu,
-> and the sprite, both meters and the menu are drawn on the panel. 303 host checks
-> pass with no board attached. What's left is the team's peripherals and the
-> hardware verification — **see [`TODO.md`](TODO.md)**.
+> and the sprite, both meters and the menu are drawn on the panel. Shaking the
+> MPU-6050 (I2C) plays with the pet. 330 host checks pass with no board attached.
+> What's left is the analog input and the hardware verification — **see
+> [`TODO.md`](TODO.md)**.
 
 ---
 
@@ -56,7 +57,7 @@ joystick. Selecting one plays its animation and applies its effect immediately.
 | Action | Physical input | State effect | Animation |
 |---|---|---|---|
 | **Feed** (required) | menu item; the **potentiometer** selects the portion (1–5) | hunger −12 × portion, happiness +4 | `slime_eating` plus a squashing transform |
-| **Play** | menu item | happiness +22, hunger +9 | jump transform of the mood sprite |
+| **Play** | menu item, or **shake the MPU-6050** | happiness +22, hunger +9 | jump transform of the mood sprite |
 | **Clean** | menu item | happiness +14 | wobble transform of the mood sprite |
 | Idle | — | passive decay | 4-frame breathing loop; the mood picks the sprite |
 
@@ -99,6 +100,9 @@ Feed row.
 | Joystick RIGHT | `PB0` | active low, internal pull-up |
 | Joystick UP | `PC0` | active low, internal pull-up |
 | User button B1 | `PC13` | configured for a rising-edge interrupt, **but the EXTI IRQ is never enabled** — poll it |
+| I2C1 SCL (MPU-6050) | `PB8` | AF4, open drain, 100 kHz |
+| I2C1 SDA (MPU-6050) | `PB9` | AF4, open drain |
+| LD2 (green) | `PB7` | **on = shake sensor answering**, off = missing or unplugged |
 
 ### ⚠️ `PA9` is claimed twice — do not initialise USB Host
 
@@ -111,17 +115,52 @@ port) for any serial logging instead.
 
 ### Additional peripherals (required: ≥1 analog + ≥1 I2C/UART/SPI device)
 
-Selected in `docs/pet-design.md`; **none are wired up or initialised yet.**
+Selected in `docs/pet-design.md`.
 
-| Role | Device | Plan |
+| Role | Device | Status |
 |---|---|---|
-| Analog input | **Potentiometer** | `ADC1`; selects the feeding portion 1–5. Free pins: `PC1`–`PC5`, `PA0`, `PA2`–`PA4` |
-| I2C device | **MPU-6050** accelerometer | `I2C1` **remapped to `PB8`/`PB9`** — address `0x68` |
-| Optional output | PWM buzzer | tone per mood, chirp per action |
+| Analog input | **Potentiometer** | **not wired up yet.** `ADC1`; selects the feeding portion 1–5. Free pins: `PC1`–`PC5`, `PA0`, `PA2`–`PA4` |
+| I2C device | **GY-521 / MPU-6050** accelerometer | **in the code, not yet verified on hardware.** `I2C1` **remapped to `PB8`/`PB9`**, address `0x68`, 100 kHz |
+| Optional output | PWM buzzer | not started; tone per mood, chirp per action |
 
 The I2C remap is not optional: the CubeMX default `I2C1` pins are `PB6`/`PB7`,
 and **`PB6` is the joystick LEFT input** while `PB7` drives `LD2`. Enabling I2C1
 on its defaults silently breaks the joystick.
+
+#### MPU-6050 shake sensor
+
+| GY-521 pin | Connect to |
+|---|---|
+| VCC | 3V3 |
+| GND | GND |
+| SCL | `PB8` |
+| SDA | `PB9` |
+| AD0, INT, XDA, XCL | leave unconnected (AD0 is pulled low on the board → address `0x68`) |
+
+Check UM2179 (the Nucleo-144 user manual) for which header pins carry `PB8`/`PB9`
+before wiring — the GFX01M2 may cover the Zio connector, in which case use the
+morpho pins. **Unplug USB before wiring.**
+
+How it works:
+
+- The accelerometer is read at **±2 g, 100 Hz** (44 Hz on-chip low-pass filter),
+  polled from the main loop every 10 ms — no `HAL_Delay`, no interrupt.
+- **A shake is 3 jolts within 1 s.** A jolt is |a| ≥ **1.8 g**; another can only
+  be counted once |a| has dropped back to ≤ **1.3 g**, so one long push is one
+  jolt. After a shake, the detector ignores the sensor for **1.5 s**, so non-stop
+  shaking can't spam Play. All of these are `#define`s at the top of
+  `Core/Inc/pet_shake.h`.
+- A shake triggers **Play** through `pet_ctl_action()`, exactly like the menu —
+  only on the pet screen, never behind an open menu. A dead or runaway pet
+  refuses it.
+- **Missing or unplugged sensor:** the pet keeps running without it, `LD2` turns
+  off, and the sensor is looked for again once a second, so plugging it back in
+  recovers without a reset. Every failure also frees the bus (nine SCL pulses and
+  a STOP) and restarts I2C1, because a wire glitch can otherwise leave it stuck
+  "busy" until the board is reset. Once a second it also checks the sensor hasn't
+  browned out and gone back to sleep, which would read as zeros without failing.
+- `WHO_AM_I` must read `0x68` (genuine) or `0x70`/`0x72` (clones commonly fitted
+  to GY-521 boards with the same accelerometer registers).
 
 ---
 
@@ -134,7 +173,7 @@ on its defaults silently breaks the joystick.
 | Joystick LEFT / RIGHT | reserved — no action yet |
 | User button B1 (`PC13`) | close the menu without acting (`PET_INPUT_BACK`) — **not wired up yet, see TODO.md** |
 | Potentiometer → ADC | selects the feeding portion, 1–5, shown beside the Feed row |
-| MPU-6050 → I2C1 | not wired up yet |
+| Shake the MPU-6050 (I2C1) | **Play** — on the pet screen only, at most once per 1.5 s |
 
 Input handling lives in `Core/Src/pet_ui.c` and is driven by logical events
 (`pet_input_t`), so the whole control scheme is tested on a PC without the board.
@@ -161,7 +200,10 @@ VirtualPet/
 │   │   ├── pet_ui.h            screen and menu state machine
 │   │   ├── pet_hud.h           screen layout + meter maths
 │   │   ├── pet_ctl.h           applies an action to the pet and its animation
-│   │   ├── pet_screen.h        drawing the screen (the only HAL-facing module)
+│   │   ├── pet_screen.h        drawing the screen (the only HAL-facing pet module)
+│   │   ├── pet_shake.h         shake detection from accelerometer samples
+│   │   ├── mpu6050_regs.h      MPU-6050 register map + byte decoding (no HAL)
+│   │   ├── mpu6050.h           MPU-6050 I2C driver
 │   │   └── main.h, HAL config, IRQ handlers
 │   └── Src/                    the matching .c files, plus main.c, MSP, SysTick
 ├── Drivers/
@@ -174,7 +216,7 @@ VirtualPet/
 ├── Middlewares/                ST USB host library (compiled, NOT initialised)
 ├── USB_HOST/                   USB host application (unused — see PA9 warning)
 ├── sprites/                    generated RGB565 assets + preview PNGs
-├── tests/                      225 host checks, run on a PC with no board
+├── tests/                      330 host checks, run on a PC with no board
 ├── tools/
 │   └── png_to_rgb565.py        artwork → RGB565 converter
 └── docs/
@@ -239,6 +281,20 @@ cmake -S . -B build/Debug -G Ninja -DCMAKE_BUILD_TYPE=Debug \
 cmake --build build/Debug
 ```
 
+The terminal configure must find the **ST bundle's** `arm-none-eabi-gcc` first on
+`PATH`. A Homebrew `arm-none-eabi-gcc` has no C library headers and fails with
+`stdint.h: No such file or directory`. On macOS:
+
+```bash
+export PATH="$HOME/Library/Application Support/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin:$PATH"
+```
+
+> ⚠️ **I2C is enabled by hand.** `HAL_I2C_MODULE_ENABLED` was uncommented in
+> `Core/Inc/stm32l4xx_hal_conf.h`, and I2C1 is set up in `main.c` and in the
+> `USER CODE` block of `stm32l4xx_hal_msp.c` — the `.ioc` does not know about it.
+> If anyone regenerates from CubeMX, either add I2C1 on `PB8`/`PB9` in CubeMX
+> first or re-apply that one line, or the build breaks.
+
 ### Flash
 
 **Run and Debug** (`Cmd+Shift+D`) → **`STM32Cube: Launch ST-Link GDB Server`** → `F5`.
@@ -281,7 +337,9 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 | `test_pet_view` | 27 |
 | `test_pet_hud` | 39 |
 | `test_pet_ctl` | 39 |
-| **Total** | **303** |
+| `test_pet_shake` | 16 |
+| `test_mpu6050_regs` | 11 |
+| **Total** | **330** |
 
 ---
 
@@ -345,7 +403,7 @@ non-sprite pixel to exactly that colour; otherwise a rectangle shows around the 
 | Member | GitHub | Primary responsibility |
 |---|---|---|
 | Anthony Kang | @Dokkae-bi | pet model, animation, sprite pipeline, UI state machine |
-| _TBD_ | _TBD_ | |
+| Malek Albdoor | _TBD_ | MPU-6050 shake sensor (I2C) |
 | _TBD_ | _TBD_ | |
 
 ### Individual contributions
@@ -357,6 +415,12 @@ _Each member records what they implemented as work progresses._
 state machine (`pet_ui`), the PNG→RGB565 converter, the sprite artwork set, the
 `ILI9341_DrawBitmap` blit, and all 225 host tests. See `git log` for the commit
 history.
+
+**Malek Albdoor:** the MPU-6050 shake sensor — I2C1 bring-up on `PB8`/`PB9`
+(`MX_I2C1_Init`, `HAL_I2C_MspInit`), the MPU-6050 driver (`mpu6050`,
+`mpu6050_regs`), the shake detector (`pet_shake`), the non-blocking poll in
+`main.c` that turns a shake into Play with retry when the sensor is missing, and
+the 27 host checks in `test_pet_shake` and `test_mpu6050_regs`.
 
 ---
 
