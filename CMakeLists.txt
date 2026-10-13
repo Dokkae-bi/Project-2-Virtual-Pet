@@ -45,9 +45,8 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
-    # Pet behaviour model - platform independent, no HAL dependency.
-    # Kept in this file (rather than cmake/stm32cubemx/CMakeLists.txt) because
-    # CubeMX regenerates the latter and would drop the entry.
+    # Pet logic and artwork. Kept here rather than in
+    # cmake/stm32cubemx/CMakeLists.txt, which CubeMX regenerates and would drop.
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_core.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_anim.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_render.c
