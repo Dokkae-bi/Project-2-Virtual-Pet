@@ -40,6 +40,8 @@
 #include "pet_ctl.h"
 #include "pet_ui.h"
 #include "pet_screen.h"
+#include "pet_shake.h"
+#include "mpu6050.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -58,6 +60,13 @@ static pet_ui_t  g_ui;
    is wired up - see TODO.md. pet_ui_set_portion() puts the same value in the
    menu, so what the player sees is what the pet actually gets. */
 static const uint8_t g_portion = PET_FEED_PORTION_MIN;
+
+/* MPU-6050 shake sensor. LD2 shows whether it is answering. */
+#define SHAKE_SAMPLE_MS  10u     /* 100 Hz, matches the sensor's output rate */
+#define SHAKE_RETRY_MS   1000u   /* how often to look for a missing sensor */
+static pet_shake_t g_shake;
+static bool        g_shake_online  = false;
+static uint32_t    g_shake_next_ms = 0u;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,6 +76,7 @@ static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
 static void MX_I2C1_Init(void);
 static pet_input_t Input_Read(void);
+static bool Shake_Poll(uint32_t now);
 /* USER CODE END PFP */
 
 /* Joystick (B1) bit flags returned by Joystick_Read() */
@@ -120,6 +130,48 @@ static pet_input_t Input_Read(void)
   else if ((pressed & JOY_CENTER_MASK) != 0U) { event = PET_INPUT_SELECT; }
 
   return event;
+}
+
+/**
+  * @brief  Sample the MPU-6050 when one is due and report a completed shake.
+  *
+  * A missing or unplugged sensor is not an error for the pet: it just keeps
+  * running without shake input, LD2 goes off, and the sensor is looked for again
+  * once a second, so plugging it back in recovers without a reset.
+  *
+  * @retval true on the one call where a shake completes.
+  */
+static bool Shake_Poll(uint32_t now)
+{
+  if ((int32_t)(now - g_shake_next_ms) < 0)
+  {
+    return false;
+  }
+
+  if (!g_shake_online)
+  {
+    g_shake_online  = (mpu6050_init(&hi2c1) == HAL_OK);
+    g_shake_next_ms = now + (g_shake_online ? SHAKE_SAMPLE_MS : SHAKE_RETRY_MS);
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin,
+                      g_shake_online ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    if (g_shake_online)
+    {
+      pet_shake_init(&g_shake);
+    }
+    return false;
+  }
+
+  int16_t accel[3];
+  if (mpu6050_read_accel(&hi2c1, accel) != HAL_OK)
+  {
+    g_shake_online  = false;
+    g_shake_next_ms = now + SHAKE_RETRY_MS;
+    HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+    return false;
+  }
+
+  g_shake_next_ms = now + SHAKE_SAMPLE_MS;
+  return pet_shake_update(&g_shake, accel[0], accel[1], accel[2], now);
 }
 
 /**
@@ -206,6 +258,15 @@ int main(void)
     else if (result.action != PET_ACTION_NONE)
     {
       (void)pet_ctl_action(&g_pet, result.action, g_portion, now);
+    }
+
+    /* Shaking the MPU-6050 plays with the pet, the same as choosing Play from
+       the menu. Ignored while the menu is open, so it can't act behind it. A
+       dead or runaway pet refuses it inside pet_ctl_action. Polled every pass
+       so a shake made with the menu open is dropped rather than queued. */
+    if (Shake_Poll(now) && (pet_ui_screen(&g_ui) == PET_SCREEN_PET))
+    {
+      (void)pet_ctl_action(&g_pet, PET_ACTION_PLAY, 1u, now);
     }
 
     pet_screen_update(&g_pet.pet, &g_pet.anim, &g_ui);
