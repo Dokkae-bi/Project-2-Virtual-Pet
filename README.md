@@ -5,8 +5,9 @@ Tamagotchi-style virtual pet running on a **NUCLEO-L496ZG-P** with an
 
 > **Status:** **the pet runs.** `main.c` starts it, the joystick drives the menu,
 > and the sprite, both meters and the menu are drawn on the panel. Shaking the
-> MPU-6050 (I2C) plays with the pet. 330 host checks pass with no board attached.
-> What's left is the analog input and the hardware verification — **see
+> MPU-6050 (I2C) plays with the pet, and a potentiometer (ADC) sets how much it
+> eats. 347 host checks pass with no board attached. What's left is the hardware
+> verification — **see
 > [`TODO.md`](TODO.md)**.
 
 ---
@@ -100,6 +101,7 @@ Feed row.
 | Joystick RIGHT | `PB0` | active low, internal pull-up |
 | Joystick UP | `PC0` | active low, internal pull-up |
 | User button B1 | `PC13` | configured for a rising-edge interrupt, **but the EXTI IRQ is never enabled** — poll it |
+| Potentiometer wiper | `PA3` | `ADC1_IN8`, analog (`GPIO_MODE_ANALOG_ADC_CONTROL`) |
 | I2C1 SCL (MPU-6050) | `PB8` | AF4, open drain, 100 kHz |
 | I2C1 SDA (MPU-6050) | `PB9` | AF4, open drain |
 | LD2 (green) | `PB7` | **on = shake sensor answering**, off = missing or unplugged |
@@ -119,7 +121,7 @@ Selected in `docs/pet-design.md`.
 
 | Role | Device | Status |
 |---|---|---|
-| Analog input | **Potentiometer** | **not wired up yet.** `ADC1`; selects the feeding portion 1–5. Free pins: `PC1`–`PC5`, `PA0`, `PA2`–`PA4` |
+| Analog input | **Potentiometer** (10 kΩ linear) | **in the code, not yet verified on hardware.** `ADC1_IN8` on `PA3`; selects the feeding portion 1–5 |
 | I2C device | **GY-521 / MPU-6050** accelerometer | **in the code, not yet verified on hardware.** `I2C1` **remapped to `PB8`/`PB9`**, address `0x68`, 100 kHz |
 | Optional output | PWM buzzer | not started; tone per mood, chirp per action |
 
@@ -161,6 +163,32 @@ How it works:
   browned out and gone back to sleep, which would read as zeros without failing.
 - `WHO_AM_I` must read `0x68` (genuine) or `0x70`/`0x72` (clones commonly fitted
   to GY-521 boards with the same accelerometer registers).
+
+#### Potentiometer (feeding portion)
+
+| Pot pin | Connect to |
+|---|---|
+| one end | 3V3 |
+| other end | GND |
+| wiper (middle) | `PA3` |
+
+`PA3` should be **A0** on the Nucleo-144 Zio connector. Confirm it in UM2179
+before wiring, and **never connect the pot to 5 V**: the ADC pin's limit is the
+3.3 V supply. Swap the two end wires if you want the knob to run the other way.
+
+How it works:
+
+- ADC1 reads `PA3` every **20 ms**: 12-bit, a single software-started
+  conversion of about 7 µs. No `HAL_Delay`, no DMA, no interrupt.
+- The range is split into five equal bands, giving **portion 1–5**. A running
+  average takes out noise, and the reading has to go **60 counts (~1.5%)** past a
+  band edge before the portion changes, so a knob resting on an edge can't make
+  the menu flicker. The tuning is `#define`d in `Core/Inc/pet_pot.h`.
+- The portion is shown beside the Feed row and is exactly what Feed uses:
+  hunger −12 × portion.
+- **Unavailable input:** a failed conversion keeps the last portion, so Feed
+  still works. A disconnected wiper leaves `PA3` floating and reads as a random
+  portion — if the number wanders on its own, check the wiper wire.
 
 ---
 
@@ -204,6 +232,7 @@ VirtualPet/
 │   │   ├── pet_shake.h         shake detection from accelerometer samples
 │   │   ├── mpu6050_regs.h      MPU-6050 register map + byte decoding (no HAL)
 │   │   ├── mpu6050.h           MPU-6050 I2C driver
+│   │   ├── pet_pot.h           potentiometer reading → feeding portion
 │   │   └── main.h, HAL config, IRQ handlers
 │   └── Src/                    the matching .c files, plus main.c, MSP, SysTick
 ├── Drivers/
@@ -216,7 +245,7 @@ VirtualPet/
 ├── Middlewares/                ST USB host library (compiled, NOT initialised)
 ├── USB_HOST/                   USB host application (unused — see PA9 warning)
 ├── sprites/                    generated RGB565 assets + preview PNGs
-├── tests/                      330 host checks, run on a PC with no board
+├── tests/                      347 host checks, run on a PC with no board
 ├── tools/
 │   └── png_to_rgb565.py        artwork → RGB565 converter
 └── docs/
@@ -289,11 +318,16 @@ The terminal configure must find the **ST bundle's** `arm-none-eabi-gcc` first o
 export PATH="$HOME/Library/Application Support/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin:$PATH"
 ```
 
-> ⚠️ **I2C is enabled by hand.** `HAL_I2C_MODULE_ENABLED` was uncommented in
-> `Core/Inc/stm32l4xx_hal_conf.h`, and I2C1 is set up in `main.c` and in the
-> `USER CODE` block of `stm32l4xx_hal_msp.c` — the `.ioc` does not know about it.
-> If anyone regenerates from CubeMX, either add I2C1 on `PB8`/`PB9` in CubeMX
-> first or re-apply that one line, or the build breaks.
+> ⚠️ **I2C1 and ADC1 are enabled by hand.** `HAL_I2C_MODULE_ENABLED` and
+> `HAL_ADC_MODULE_ENABLED` were uncommented in `Core/Inc/stm32l4xx_hal_conf.h`;
+> `MX_I2C1_Init`/`MX_ADC1_Init` live in `USER CODE` blocks of `main.c` and the MSP
+> inits in `USER CODE 1` of `stm32l4xx_hal_msp.c`. The ST ADC driver files
+> (`stm32l4xx_hal_adc*.c/.h`, `stm32l4xx_ll_adc.h`) were copied unmodified from
+> STM32Cube_FW_L4 V1.18.2 and are built from the top-level `CMakeLists.txt`.
+> The `.ioc` knows about none of this. Before regenerating from CubeMX, either
+> add I2C1 (`PB8`/`PB9`) and ADC1 (`PA3`, IN8) there **and delete the hand-written
+> `MX_*_Init` and `HAL_*_MspInit` copies** (or the link fails with duplicates),
+> or re-apply the two `hal_conf.h` lines afterwards.
 
 ### Flash
 
@@ -339,7 +373,8 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 | `test_pet_ctl` | 39 |
 | `test_pet_shake` | 16 |
 | `test_mpu6050_regs` | 11 |
-| **Total** | **330** |
+| `test_pet_pot` | 17 |
+| **Total** | **347** |
 
 ---
 
@@ -403,7 +438,7 @@ non-sprite pixel to exactly that colour; otherwise a rectangle shows around the 
 | Member | GitHub | Primary responsibility |
 |---|---|---|
 | Anthony Kang | @Dokkae-bi | pet model, animation, sprite pipeline, UI state machine |
-| Malek Albdoor | _TBD_ | MPU-6050 shake sensor (I2C) |
+| Malek Albdoor | @MalekAlbdoor | MPU-6050 shake sensor (I2C), potentiometer (ADC) |
 | _TBD_ | _TBD_ | |
 
 ### Individual contributions
@@ -420,7 +455,11 @@ history.
 (`MX_I2C1_Init`, `HAL_I2C_MspInit`), the MPU-6050 driver (`mpu6050`,
 `mpu6050_regs`), the shake detector (`pet_shake`), the non-blocking poll in
 `main.c` that turns a shake into Play with retry when the sensor is missing, and
-the 27 host checks in `test_pet_shake` and `test_mpu6050_regs`.
+the 27 host checks in `test_pet_shake` and `test_mpu6050_regs`. The potentiometer
+— ADC1 bring-up on `PA3` (`MX_ADC1_Init`, `HAL_ADC_MspInit`, the ST ADC driver),
+the smoothing and hysteresis that map it to a portion (`pet_pot`), the poll in
+`main.c` that sets the Feed portion and the menu, and the 17 host checks in
+`test_pet_pot`.
 
 ---
 

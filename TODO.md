@@ -1,11 +1,12 @@
 # Project 2 — what's left to do
 
 **As of 2026-10-13.** The pet runs. `main.c` starts it, the joystick drives the
-menu, and the sprite, both meters and the menu are drawn on the panel. **303 host
+menu, and the sprite, both meters and the menu are drawn on the panel. **347 host
 checks pass with no board attached.**
 
-What remains is the team's peripherals, wiring up the second input, filling in the
-paperwork, and verifying any of it on hardware.
+Both required peripherals are in the code (the MPU-6050 on I2C and the potentiometer
+on the ADC). What remains is the user button, the paperwork, and verifying any of
+it on hardware.
 
 ---
 
@@ -23,7 +24,7 @@ paperwork, and verifying any of it on hardware.
 | `pet_screen` | draws the screen — the only HAL-facing pet module |
 | `main.c` | starts the pet, reads the joystick, runs the loop |
 | `sprites/` | 7 slime states + 2 HUD icons, all converted |
-| `tests/` | 303 checks across 7 suites, all passing |
+| `tests/` | 347 checks across 10 suites, all passing |
 | `tools/png_to_rgb565.py` | the artwork converter, re-runnable |
 | `Drivers/BSP/GFX01M2/ili9341.c` | added `ILI9341_DrawBitmap` — the supplied BSP had no way to draw an image |
 
@@ -75,13 +76,16 @@ sensor". Still to do on it, once the headers are soldered:
       compare with `mpu6050_who_am_i_ok()`; otherwise check SDA/SCL aren't swapped.
       The I2C `TIMING` value `0x60420F13` is calculated, not yet measured.
 
-The **analog input** is not chosen or wired yet. The code is ready for it:
+**The analog input is done in code too: a potentiometer on `PA3` (ADC1_IN8) sets
+the Feed portion, 1–5.** Wiring and behaviour are in README §2 "Potentiometer".
+Still to do on it, once the headers are soldered:
 
-```c
-/* The analog input feeds this. pet_feed() clamps it, so a noisy reading
-   just gives a bigger or smaller meal rather than breaking anything. */
-pet_ctl_action(&g_pet, PET_ACTION_FEED, portion_from_adc(), now);
-```
+- [ ] wire it (README table: ends to 3V3/GND, wiper to `PA3`, **never 5 V**)
+- [ ] turning the knob end to end steps the number beside Feed through 1–5
+- [ ] the number does not flicker with the knob resting near a band edge
+- [ ] Feed at portion 1 and at portion 5 → hunger drops by 12 and by 60
+- [ ] if it stays on 1 whatever the knob does: check the wiper is on `PA3` and
+      read `HAL_ADC_GetValue` under the debugger — it should run 0 to ~4095
 
 On the **digital device on a bus**: a bare 7-segment display is GPIO, not a bus
 device, and would cost 8 pins. One with a **MAX7219** (SPI) or **HT16K33** (I2C)
@@ -193,8 +197,11 @@ Same pattern for the others:
 | `test_pet_hud` | `pet_ui.c pet_core.c` |
 | `test_pet_ctl` | `pet_anim.c pet_core.c` |
 | `test_pet_view` | `pet_render.c pet_anim.c pet_core.c`, plus `-I sprites` and `sprites/slime_*.c` |
+| `test_pet_shake` | `pet_shake.c` |
+| `test_mpu6050_regs` | `mpu6050_regs.c` |
+| `test_pet_pot` | `pet_pot.c` |
 
-Expected totals: **46 / 54 / 38 / 60 / 27 / 39 / 39 = 303 checks.**
+Expected totals: **46 / 54 / 38 / 60 / 27 / 39 / 39 / 16 / 11 / 17 = 347 checks.**
 
 **Firmware build** — use the STM32 VS Code extension, or:
 

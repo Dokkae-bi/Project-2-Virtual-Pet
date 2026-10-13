@@ -179,8 +179,9 @@ of flash is left unused.
 | HUD icons (berry, heart) | ✅ drawn and converted |
 | **`main.c` integration** | ✅ **done — the pet runs** |
 | User button B1 wired to `PET_INPUT_BACK` | ❌ not wired up |
-| Analog / I2C input drivers | 🔌 needs hardware — the team's part |
+| I2C input: MPU-6050 shake → Play (`pet_shake`, `mpu6050`) | ✅ implemented, 27 host checks — not yet on hardware |
+| Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, 17 host checks — not yet on hardware |
 | Verified on real hardware | ❌ blocked on the unsoldered headers |
 
-**303 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
+**347 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
 still outstanding.
