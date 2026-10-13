@@ -43,18 +43,12 @@ void ILI9341_DrawVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t color);
 void ILI9341_DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
 void ILI9341_DrawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 
-/**
- * @brief Draw an RGB565 bitmap with its top-left corner at (x, y).
- *
- * The array holds plain RGB565 values - the same encoding as the ILI9341_COLOR_*
- * constants above - and this function converts them to the byte order the panel
- * expects, so asset files stay readable and never have to be pre-swapped.
- *
- * The bitmap is drawn opaque: sprites are composited onto the stage colour when
- * they are converted, so there is no per-pixel transparency test here and the
- * whole region transfers in one address-window pass. Keeping it opaque is what
- * lets a 64x64 sprite cost ~37 ms over SPI instead of many small writes.
- */
+/* Draw an RGB565 bitmap with its top-left corner at (x, y). The array holds
+ * plain RGB565 values, the same as the ILI9341_COLOR_* constants above, and this
+ * converts them to the byte order the panel wants so the asset files stay
+ * readable. Sprites are already composited onto the stage colour when they are
+ * converted, so there's no per-pixel transparency test here and the whole region
+ * goes out in one address-window pass (~37 ms for a 64x64 sprite). */
 void ILI9341_DrawBitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
                         const uint16_t *bmp);
 

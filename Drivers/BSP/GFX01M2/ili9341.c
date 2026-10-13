@@ -210,8 +210,8 @@ void ILI9341_DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t c
 void ILI9341_DrawBitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
                         const uint16_t *bmp)
 {
-    /* One row at a time through a static buffer, exactly like FillRect: the stack
-     * is only 2 KB, so a full 64x64 sprite (8 KB) can never live on the stack. */
+    /* One row at a time through a static buffer, same as FillRect. The stack is
+       only 2 KB, so an 8 KB sprite can't be a local variable. */
     static uint8_t row_buf[ILI9341_WIDTH * 2];
     uint16_t row, i;
 
@@ -221,7 +221,7 @@ void ILI9341_DrawBitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
     if ((x >= ILI9341_WIDTH) || (y >= ILI9341_HEIGHT)) {
         return;
     }
-    /* Clip rather than assume the caller positioned the sprite correctly. */
+    /* Clip instead of trusting the caller to have positioned it properly. */
     if ((uint32_t)(x + w) > ILI9341_WIDTH)  { w = (uint16_t)(ILI9341_WIDTH - x);  }
     if ((uint32_t)(y + h) > ILI9341_HEIGHT) { h = (uint16_t)(ILI9341_HEIGHT - y); }
 
@@ -233,9 +233,8 @@ void ILI9341_DrawBitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
     for (row = 0; row < h; row++) {
         const uint16_t *src = &bmp[(uint32_t)row * w];
 
-        /* The panel takes the high byte of each RGB565 word first, which is the
-         * same order FillRect uses - this is the step that keeps red and blue
-         * from being swapped on screen. */
+        /* The panel wants the high byte of each RGB565 word first, the same
+           order FillRect sends it. This is what stops red and blue swapping. */
         for (i = 0; i < w; i++) {
             row_buf[2U * i]      = (uint8_t)(src[i] >> 8);
             row_buf[2U * i + 1U] = (uint8_t)(src[i] & 0xFFU);

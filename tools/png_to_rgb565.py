@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 """
-png_to_rgb565.py - convert sprite artwork into panel-ready RGB565 C arrays.
+png_to_rgb565.py - turn sprite artwork into RGB565 C arrays for the LCD.
 
-Pipeline (each step is deterministic, so every sprite comes out uniform without
-re-prompting the image generator):
+Steps:
+  1. load the PNG, or one cell of a sprite sheet
+  2. remove the background by flood filling inwards from the border, not by
+     matching that colour everywhere - a global match would also punch out the
+     white eye highlights
+  3. crop to the bounding box of what's left
+  4. scale with nearest neighbour to fit the target size, keeping the aspect ratio
+  5. quantize to a small palette, which flattens any soft gradients the image
+     generator left in
+  6. composite onto the stage colour so the sprite is opaque, and place it on a
+     fixed size canvas resting on a fixed baseline
+  7. write out a const uint16_t RGB565 array and its dimensions
 
-  1. load the PNG (optionally one cell of a sprite sheet)
-  2. remove the background by FLOOD FILL FROM THE BORDER, not by matching a
-     colour globally - this is what stops white eye highlights being punched out
-     when the artwork sits on a white background
-  3. crop to the bounding box of the surviving pixels
-  4. scale with NEAREST to fit the target size, preserving aspect ratio
-  5. quantize to a limited palette, which collapses any soft gradients the image
-     model left behind into flat bands
-  6. composite onto the stage background colour so the sprite is OPAQUE, and
-     place it on a fixed-size canvas with the feet on a fixed baseline
-  7. emit a const uint16_t RGB565 array plus its dimensions
-
-Run with the venv interpreter:
+Run it with the venv python:
     ~/.venvs/img/bin/python png_to_rgb565.py <in.png> --name slime_idle \
         --grid 2x2 --cell 0,0 --size 64 --colors 14 --out-dir sprites/
 """
@@ -30,8 +28,8 @@ from collections import deque
 import numpy as np
 from PIL import Image, ImageFilter
 
-# Stage background the sprite is composited onto (must match the firmware's
-# pet-stage fill so the blit can be a single opaque transfer).
+# Stage background the sprites get composited onto. Has to match the firmware's
+# stage fill, so the blit can be one opaque transfer.
 DEFAULT_STAGE = (30, 42, 50)      # #1E2A32
 
 
@@ -45,15 +43,15 @@ def parse_hex(value, default=None):
 
 
 def rgb565(r, g, b):
-    # int() is load-bearing. Callers pass numpy uint8 values, and shifting a
-    # uint8 left by 11 wraps at 8 bits: 3 << 11 becomes 0, which silently zeroes
-    # the red field of every pixel and corrupts green.
+    # The int() calls matter. Callers pass numpy uint8 values and shifting a
+    # uint8 left by 11 wraps at 8 bits, so 3 << 11 comes out as 0. That zeroes
+    # the red field of every pixel and wrecks green too.
     r, g, b = int(r), int(g), int(b)
     return ((r >> 3) << 11) | ((g >> 2) << 5) | (b >> 3)
 
 
 def cell_of(img, grid, cell):
-    """Cut one cell out of an RxC sprite sheet."""
+    """Cut one cell out of a rows x cols sprite sheet."""
     if grid is None:
         return img
     rows, cols = grid
@@ -67,14 +65,14 @@ def cell_of(img, grid, cell):
 
 def background_mask(rgb, tolerance):
     """
-    Flood fill from every border pixel, marking pixels within `tolerance` of the
-    corner colour that are reachable from the edge.
+    Flood fill from every border pixel, marking anything within `tolerance` of
+    the corner colour that you can reach from the edge.
 
-    Returns a boolean array: True = background (to be removed).
+    Returns a bool array, True meaning background.
 
-    Why flood fill rather than a global colour test: a sprite may legitimately
-    contain the background colour inside it (white eye highlights on white
-    paper). Only the connected outer region is background.
+    Flood filling rather than testing the colour everywhere is what lets a
+    sprite keep the background colour inside it - white eye highlights on white
+    paper, for instance. Only the outer connected region gets removed.
     """
     h, w, _ = rgb.shape
     corner = rgb[0, 0].astype(np.int16)
@@ -117,15 +115,14 @@ def main():
     ap.add_argument("--baseline-margin", type=int, default=2,
                     help="blank rows between the feet and the bottom of the canvas")
     ap.add_argument("--fit", type=float, default=0.92,
-                    help="fraction of the canvas the sprite fills, leaving room for "
-                         "squash/stretch animation")
+                    help="fraction of the canvas the sprite fills, leaving room to "
+                         "squash and stretch during animation")
     ap.add_argument("--defringe", type=int, default=1,
-                    help="pixels to erode from the sprite edge, removing the "
-                         "key-coloured blend ring that flood fill cannot remove. "
-                         "Do not raise this blindly: eroding 2px eats through a "
-                         "thin dark outline and leaves the body colour touching "
-                         "the background, which measures worse than the fringe it "
-                         "removed. 1 is the right trade for this art.")
+                    help="pixels to erode off the sprite edge, to remove the "
+                         "key-coloured ring that the flood fill can't. Don't just "
+                         "raise this: eroding 2 px eats through a thin dark outline "
+                         "and leaves the body colour touching the background, which "
+                         "is worse than the fringe it removed. 1 suits this art.")
     ap.add_argument("--out-dir", default=".")
     ap.add_argument("--emit-header", action="store_true")
     args = ap.parse_args()
@@ -155,36 +152,36 @@ def main():
     ys, xs = np.where(kept)
     y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
 
-    # Crop to the sprite, carrying an alpha mask of the pixels that survived keying.
+    # Crop to the sprite, keeping an alpha mask of which pixels survived keying.
     sprite = rgb[y0:y1, x0:x1].astype(np.uint8)
     sprite_bg = bg[y0:y1, x0:x1]
     rgba = np.dstack([sprite, np.where(sprite_bg, 0, 255).astype(np.uint8)])
     src = Image.fromarray(rgba, "RGBA")
 
-    # Nearest-neighbour fit into a FRACTION of the canvas so squash/stretch
-    # animation has somewhere to grow inside the fixed sprite region.
+    # Fit into a fraction of the canvas so there's room for the sprite to grow
+    # and squash during animation.
     sw, sh = x1 - x0, y1 - y0
     box = max(1, int(round(args.size * args.fit)))
     scale = box / max(sw, sh)
     tw, th = max(1, int(round(sw * scale))), max(1, int(round(sh * scale)))
     fit = src.resize((tw, th), Image.Resampling.NEAREST)
 
-    # Defringe. Downscaling a soft anti-aliased edge leaves a ring of pixels
-    # blended between the artwork and the key colour; those are NOT within
-    # tolerance of the key colour, so the flood fill cannot remove them and they
-    # quantize into a pink fringe. Eroding the alpha removes the ring.
+    # Downscaling a soft edge leaves a ring of pixels blended between the artwork
+    # and the key colour. Those aren't within tolerance of the key colour, so the
+    # flood fill can't remove them and they quantize into a pink fringe. Eroding
+    # the alpha takes the ring off.
     alpha = fit.split()[3]
     if args.defringe > 0:
         alpha = alpha.filter(ImageFilter.MinFilter(2 * args.defringe + 1))
 
-    # Composite onto the stage colour FIRST and quantize the whole canvas AFTER,
-    # so palette entries are not wasted on the background that was removed.
+    # Composite onto the stage colour first and quantize the whole canvas after,
+    # otherwise palette entries get spent on background that was already removed.
     canvas = Image.new("RGB", (args.size, args.size), stage)
     px = (args.size - tw) // 2
     py = max(0, args.size - args.baseline_margin - th)
     canvas.paste(fit.convert("RGB"), (px, py), alpha)
 
-    # Which canvas pixels are NOT part of the sprite?
+    # Which canvas pixels aren't part of the sprite?
     sprite_mask = Image.new("L", (args.size, args.size), 0)
     sprite_mask.paste(alpha, (px, py))
     outside = np.array(sprite_mask) == 0
@@ -193,11 +190,11 @@ def main():
                             method=Image.Quantize.MEDIANCUT).convert("RGB")
     arr = np.array(quant).copy()
 
-    # The firmware fills the stage with ONE exact colour, so every pixel the
-    # sprite does not cover must come back as exactly that value. Palette
-    # quantization can shift it slightly, which on hardware shows up as a faint
-    # rectangular seam around the pet. Snap the outside, plus any leftover
-    # background-coloured pixel just inside the edge.
+    # The firmware fills the stage with one exact colour, so every pixel the
+    # sprite doesn't cover has to come back as exactly that value. Quantization
+    # can shift it, and on hardware that shows as a faint rectangular seam round
+    # the pet. Snap the outside, plus anything still background-coloured just
+    # inside the edge.
     stage_px = np.array(stage, dtype=np.uint8)
     near_stage = (np.abs(arr.astype(np.int16) - stage_px.astype(np.int16))
                   .max(axis=2) <= 10)
@@ -209,10 +206,10 @@ def main():
     os.makedirs(args.out_dir, exist_ok=True)
     c_path = os.path.join(args.out_dir, f"{stem}.c")
     preview_path = os.path.join(args.out_dir, f"{stem}_preview.png")
-    # Render the preview by DECODING THE EMITTED RGB565, not from the canvas.
-    # A preview of the pre-quantization canvas hides quantization and colour
-    # conversion defects - which is precisely how a zeroed red channel survived
-    # every visual inspection of these sprites.
+    # Build the preview by decoding the RGB565 we just emitted, not from the
+    # canvas. A preview of the canvas hides quantization and colour conversion
+    # problems, which is how a zeroed red channel got past every look at these
+    # sprites before.
     decoded = [(((v >> 11) & 0x1F) * 255 // 31,
                 ((v >> 5) & 0x3F) * 255 // 63,
                 (v & 0x1F) * 255 // 31) for v in vals]
