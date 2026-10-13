@@ -52,6 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_render.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_view.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_ui.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_hud.c
     # Generated RGB565 sprite assets (produced by tools/png_to_rgb565.py).
     ${CMAKE_SOURCE_DIR}/sprites/slime_content.c
     ${CMAKE_SOURCE_DIR}/sprites/slime_delighted.c
@@ -60,6 +61,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/sprites/slime_eating.c
     ${CMAKE_SOURCE_DIR}/sprites/slime_dead.c
     ${CMAKE_SOURCE_DIR}/sprites/slime_runaway.c
+    # HUD icons (hunger, happiness).
+    ${CMAKE_SOURCE_DIR}/sprites/icon_hunger.c
+    ${CMAKE_SOURCE_DIR}/sprites/icon_happy.c
 )
 
 # Add include paths
