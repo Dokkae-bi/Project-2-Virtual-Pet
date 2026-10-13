@@ -145,6 +145,11 @@ first hardware session as a bring-up, not a formality.
 8. **Don't edit the files CubeMX generates**, or `syscalls.c`, or the HAL drivers.
    New sources go in `CMakeLists.txt` under `target_sources`, **not** in
    `cmake/stm32cubemx/CMakeLists.txt`.
+9. ⚠️ **Regenerating `main.c` from CubeMX will wipe the pet integration.** The pet
+   code now sits inside `USER CODE BEGIN/END` blocks, which CubeMX preserves — but
+   only if it regenerates cleanly. **Back up `main.c` before enabling ADC1 or I2C1
+   in CubeMX**, then diff afterwards. Losing the main loop to a regeneration is an
+   easy afternoon gone.
 
 ---
 

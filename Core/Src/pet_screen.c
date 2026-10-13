@@ -22,6 +22,7 @@ static struct {
     int16_t       hunger;
     int16_t       happiness;
     uint8_t       cursor;
+    uint8_t       portion;
     pet_screen_t  screen;
     pet_anim_id_t anim;
     uint8_t       frame;
@@ -76,6 +77,18 @@ static void draw_lower_block(const pet_ui_t *ui)
         ILI9341_FillRect(PET_HUD_MENU_X, row_y, PET_HUD_MENU_W, PET_HUD_MENU_ROW_H, bg);
         ILI9341_DrawString((uint16_t)(PET_HUD_MENU_X + 12u), (uint16_t)(row_y + 5u),
                            pet_ui_item_label(i), PET_HUD_COL_TEXT, bg, 2);
+
+        /* The Feed row also shows how much the analog input currently selects,
+           so what the player reads is what the pet will actually get. */
+        if (pet_ui_item_action(i) == PET_ACTION_FEED) {
+            /* Sized for any unsigned, so the compiler doesn't warn about a
+               possible truncation. The value is 1-5 in practice. */
+            char amount[16];
+            (void)snprintf(amount, sizeof(amount), "x%u", (unsigned)pet_ui_portion(ui));
+            ILI9341_DrawString((uint16_t)(PET_HUD_MENU_X + PET_HUD_MENU_W - 36u),
+                               (uint16_t)(row_y + 5u), amount,
+                               PET_HUD_COL_TEXT, bg, 2);
+        }
     }
 }
 
@@ -152,14 +165,15 @@ void pet_screen_update(const pet_t *pet, const pet_anim_t *anim, const pet_ui_t 
     /* The lower block holds either the menu or the ending message, so it is
        redrawn whole when the screen, the selection or the state changes. */
     if (!g_drawn.valid || (pet_ui_screen(ui) != g_drawn.screen) ||
-        (pet->state != g_drawn.state) ||
+        (pet->state != g_drawn.state) || (pet_ui_portion(ui) != g_drawn.portion) ||
         ((pet_ui_screen(ui) == PET_SCREEN_MENU) &&
          (pet_ui_cursor(ui) != g_drawn.cursor))) {
         draw_lower_block(ui);
         draw_ending(pet);
-        g_drawn.screen = pet_ui_screen(ui);
-        g_drawn.cursor = pet_ui_cursor(ui);
-        g_drawn.state  = pet->state;
+        g_drawn.screen  = pet_ui_screen(ui);
+        g_drawn.cursor  = pet_ui_cursor(ui);
+        g_drawn.portion = pet_ui_portion(ui);
+        g_drawn.state   = pet->state;
     }
 
     g_drawn.valid = true;

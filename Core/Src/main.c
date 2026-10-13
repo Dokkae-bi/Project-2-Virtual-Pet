@@ -35,23 +35,34 @@
 #include "ili9341.h"
 #include "gfx01m2_conf.h"
 
+/* USER CODE BEGIN Includes */
 /* Pet modules. Layering is described in README.md. */
 #include "pet_ctl.h"
 #include "pet_ui.h"
 #include "pet_screen.h"
+/* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
 
+/* USER CODE BEGIN PV */
 /* Pet state. static because the stack is only 2 KB. */
 static pet_ctl_t g_pet;
 static pet_ui_t  g_ui;
+
+/* How much the pet gets fed. This is the value the analog input will set once it
+   is wired up - see TODO.md. pet_ui_set_portion() puts the same value in the
+   menu, so what the player sees is what the pet actually gets. */
+static const uint8_t g_portion = PET_FEED_PORTION_MIN;
+/* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
+/* USER CODE BEGIN PFP */
 static pet_input_t Input_Read(void);
+/* USER CODE END PFP */
 
 /* Joystick (B1) bit flags returned by Joystick_Read() */
 #define JOY_LEFT_MASK   (1U << 0)
@@ -74,6 +85,7 @@ static uint8_t Joystick_Read(void)
   return state;
 }
 
+/* USER CODE BEGIN 0 */
 /**
   * @brief  Turn the joystick into one logical event for pet_ui.
   *
@@ -104,6 +116,7 @@ static pet_input_t Input_Read(void)
 
   return event;
 }
+/* USER CODE END 0 */
 
 /**
   * @brief  The application entry point.
@@ -121,24 +134,25 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
 
-  /* Initialize the LCD, then start the pet and draw the first frame */
+  /* Initialize the LCD */
   ILI9341_Init(&hspi1);
 
+  /* USER CODE BEGIN 2 */
   pet_ctl_init(&g_pet, HAL_GetTick());
   pet_ui_init(&g_ui);
+  pet_ui_set_portion(&g_ui, g_portion);
   pet_screen_init(&g_pet.pet, &g_pet.anim, &g_ui);
+  /* USER CODE END 2 */
 
   /*
    * Main loop. Deliberately no HAL_Delay in here: every part of the pet is
    * driven by elapsed time, so blocking would freeze its clock and the
    * animation. Nothing is redrawn unless it actually changed, so spinning
    * freely costs nothing on the SPI bus.
-   *
-   * The portion fed to the pet comes from the analog input once that is wired
-   * up; see TODO.md. Until then it uses the smallest meal.
    */
   while (1)
   {
+    /* USER CODE BEGIN WHILE */
     const uint32_t now = HAL_GetTick();
 
     pet_ctl_tick(&g_pet, now);
@@ -151,10 +165,14 @@ int main(void)
     }
     else if (result.action != PET_ACTION_NONE)
     {
-      (void)pet_ctl_action(&g_pet, result.action, PET_FEED_PORTION_MIN, now);
+      (void)pet_ctl_action(&g_pet, result.action, g_portion, now);
     }
 
     pet_screen_update(&g_pet.pet, &g_pet.anim, &g_ui);
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+    /* USER CODE END 3 */
   }
 }
 
