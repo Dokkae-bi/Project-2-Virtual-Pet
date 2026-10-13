@@ -50,6 +50,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # CubeMX regenerates the latter and would drop the entry.
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_core.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_anim.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_render.c
 )
 
 # Add include paths
