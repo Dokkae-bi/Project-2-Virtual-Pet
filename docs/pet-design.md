@@ -1,0 +1,156 @@
+# Virtual pet design — the slime
+
+> **Status:** design locked, artwork in progress, model implemented and tested.
+> Console name pending (referred to below as `Bloop`, easily changed).
+
+---
+
+## 1. Why a slime
+
+The creature was chosen for engineering reasons, not just taste. Four properties
+make it the lowest-risk design for this display and this memory budget:
+
+| Property | Consequence |
+|---|---|
+| **One geometric shape, no limbs to draw** | Survives 64×64 RGB565 downscaling without turning to mush — unlike fluffy or heavily-detailed designs whose sub-pixel features vanish |
+| **Squash and stretch is the whole animation** | The idle animation and most action animations are shape transforms of a single sprite, not new artwork |
+| **State is expressed by colour** | Mood can be a **palette swap** on one body sprite rather than a new sprite per mood |
+| **Flat colour planes** | Quantizes cleanly to a small palette with no gradient banding |
+
+## 2. Identity
+
+- **Body:** a rounded gel dome in cyan-teal, thick dark outline, a lighter belly
+  tone and a small specular shine, with a few drips at the base.
+- **Face:** two large round eyes (white highlight) and a small mouth.
+- **Mood indicator:** three channels at once — **body colour** (palette swap),
+  **silhouette** (squash/stretch/sag), and **face** (eye and mouth shape).
+
+Using colour *and* shape keeps the state readable even at a glance, and matches
+the interface requirement that the user can tell what the pet needs.
+
+## 3. State → appearance
+
+Six visual states, mapped one-to-one onto the model states in `pet_core.h`.
+
+| Model state | Trigger | Body colour | Silhouette | Face | Artwork |
+|---|---|---|---|---|---|
+| `PET_MOOD_DELIGHTED` | happiness ≥ 75 | bright saturated teal | stretched taller | happy upward-arc eyes, open smile | ✅ have |
+| `PET_MOOD_CONTENT` | default | base teal | neutral rounded dome | calm open eyes, small smile | ✅ have |
+| `PET_MOOD_HUNGRY` | hunger ≥ 70 (happiness still OK) | pale, slightly washed out | gentle sag | flat wobbly mouth, eyes a little smaller | ❌ **needed** |
+| `PET_MOOD_MISERABLE` | happiness ≤ 25 | dull grey-teal | flattened, sagging wide | half-closed downcast eyes, downturned mouth | ✅ have |
+| `PET_DEAD` | hunger reaches 100 | drained grey | collapsed to a flat puddle | eyes closed, no mouth | ❌ **needed** |
+| `PET_RUNAWAY` | happiness reaches 0 | fading, low opacity look | sliding off the edge of the stage | back turned / gone | ❌ **needed** |
+
+`PET_MOOD_HUNGRY` is deliberately **distinct from** `PET_MOOD_MISERABLE`: a pet can
+be well-loved but starving, and the player must be able to tell those apart.
+
+## 4. Actions and hardware mapping
+
+| Action | Physical input | Model effect | Animation | Artwork |
+|---|---|---|---|---|
+| **FEED** *(required)* | **Potentiometer → ADC** selects portion 1–5 | hunger −12×portion, happiness +4 | berry drops in and is absorbed, with a ripple | 1 of ~5 frames |
+| **PLAY** | **MPU-6050 accelerometer → I2C**, shake or tilt | happiness +22, hunger +9 | excited jiggle and bounce | ❌ 5 frames |
+| **CLEAN** | **Push-button → GPIO** | happiness +14 | sparkle wash, slime brightens | ❌ 5 frames |
+| Menu navigation | GFX01M2 joystick | select / activate | — | code only |
+| Mood voice | **PWM buzzer** | tone per mood, chirp per action | — | code only |
+
+The potentiometer gives the exact chain the brief asks for: **raw ADC value
+(0–4095) → interpreted value (portion 1–5) → visible effect on the pet**.
+
+### Peripherals covered
+
+| Rubric requirement | Covered by |
+|---|---|
+| GPIO | push-button, joystick |
+| ADC | potentiometer |
+| Additional I2C / UART / SPI device | MPU-6050 on I2C1 |
+| Two purposeful external input/output sources | potentiometer + accelerometer (+ buzzer) |
+| Timer / tick scheduling | PWM buzzer + the `HAL_GetTick()` scheduler |
+| LCD over SPI | ILI9341 on SPI1 |
+
+## 5. Colour palette (RGB565, verified)
+
+Every value below was computed as `((R>>3)<<11) | ((G>>2)<<5) | (B>>3)` and the
+method was checked against the driver's own constants: `#FF0000 → 0xF800`
+(matches `ILI9341_COLOR_RED`) and `#0000FF → 0x001F` (matches `ILI9341_COLOR_BLUE`).
+
+| Name | Hex | RGB565 |
+|---|---|---|
+| Colour-key background | `#FF00FF` | `0xF81F` |
+| Outline | `#14201E` | `0x1103` |
+| Body — dark | `#2A8C80` | `0x2C70` |
+| Body — base | `#46C8B4` | `0x4656` |
+| Body — light | `#8AEAD8` | `0x8F5B` |
+| Shine | `#D6FFF6` | `0xD7FE` |
+| Eye white | `#FFFFFF` | `0xFFFF` |
+| Eye black | `#101418` | `0x10A3` |
+| Mouth | `#8A2B4A` | `0x8949` |
+| Sparkle | `#FFF6B0` | `0xFFB6` |
+| Dead grey | `#6E7B7A` | `0x6BCF` |
+| Runaway dull | `#3E5A66` | `0x3ACC` |
+| Meter fill | `#FFB020` | `0xFD84` |
+| Meter empty | `#2A2F36` | `0x2966` |
+
+## 6. Screen layout (240 × 320 portrait)
+
+| Region | Extent | Contents | Redraw strategy |
+|---|---|---|---|
+| Stage | y 0–179 | the slime, centred, 64×64 or 96×96 | blit the sprite region only |
+| Hunger meter | y 184–196 | 160×12 bar + label | redraw **changed segment only** |
+| Happiness meter | y 200–212 | 160×12 bar + label | redraw **changed segment only** |
+| Menu | y 220–319 | three action items, selected one highlighted | redraw on selection change only |
+
+Meters and menu are drawn with `ILI9341_FillRect` and `ILI9341_DrawString` — they
+need **no artwork**.
+
+## 7. Rendering rules (derived from measured SPI throughput)
+
+SPI1 runs at 1.775 MHz ≈ 221,875 bytes/s, measured from this project's clock tree:
+
+| Operation | Transfer time |
+|---|---|
+| Full screen 240×320 | **692 ms** |
+| 64×64 sprite | 37 ms |
+| 160×12 meter bar | 17 ms |
+| One 5×7 character | 2.05 ms |
+| 20-character label | 41 ms |
+
+Therefore:
+
+1. **Never redraw the whole screen.** Animate a 64×64 sprite into a fixed region.
+2. **Update meters partially** — only the changed segment.
+3. **Never redraw text every frame.** `ILI9341_DrawChar` calls `FillRect` per
+   pixel (35 address-window setups per character).
+4. **`static` buffers only.** The stack is 2 KB and the heap 512 B.
+5. **Non-blocking, `HAL_GetTick()`-based.** No `HAL_Delay()` in the main loop, so
+   the interface stays responsive while an animation runs.
+
+## 8. Animation set
+
+Minimum required: an idle animation plus a distinct animation for each of the three
+actions, plus distinct death and runaway presentations.
+
+| Animation | Frames | Notes |
+|---|---|---|
+| Idle | 4 | slow breathing squash/stretch, looped |
+| Feed | 5 | berry enters, absorbed, ripple |
+| Play | 5 | excited jiggle, bounce up |
+| Clean | 5 | sparkle wash, brightness lift |
+| Death | 4 | collapse into a flat puddle |
+| Runaway | 4 | slide off the stage, fading |
+| Restart | 3 | droplet re-forming into the slime |
+
+Frame budget at 64×64 (8,192 bytes per frame): 27 frames ≈ **221 KB**, about
+**21% of the 1 MB flash**, leaving ~790 KB spare.
+
+## 9. Implementation status
+
+| Component | Status |
+|---|---|
+| Pet behaviour model (`Core/Src/pet_core.c`) | ✅ implemented, 46 host checks passing |
+| Animation sequencer | ❌ to do |
+| Menu / screen state machine | ❌ to do |
+| State → animation mapping | ❌ to do |
+| Display driver sprite blit | ❌ to do (`ILI9341_DrawBitmap`) |
+| PNG → RGB565 converter | ❌ to do |
+| Analog / I2C input drivers | 🔌 needs hardware |
