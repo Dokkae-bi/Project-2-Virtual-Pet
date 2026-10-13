@@ -1,11 +1,11 @@
-# Project 2 - what's left to do
+# Project 2 — what's left to do
 
-**As of 2026-10-13.** The pet's logic and artwork are finished and tested, but
-**none of it is wired into the program yet**. `main.c` is still the instructor's
-demo, so flashing the board today shows colour bars and a row of 0s and 1s - not
-the pet.
+**As of 2026-10-13.** The pet runs. `main.c` starts it, the joystick drives the
+menu, and the sprite, both meters and the menu are drawn on the panel. **303 host
+checks pass with no board attached.**
 
-If you're picking this up: **start with task 1**, everything else depends on it.
+What remains is the team's peripherals, wiring up the second input, filling in the
+paperwork, and verifying any of it on hardware.
 
 ---
 
@@ -13,229 +13,172 @@ If you're picking this up: **start with task 1**, everything else depends on it.
 
 | Where | What |
 |---|---|
-| `Core/Inc` + `Core/Src` | `pet_core`, `pet_anim`, `pet_render`, `pet_view`, `pet_ui` - all the pet's behaviour |
-| `tests/` | 225 checks, all passing, run on a PC with **no board attached** |
-| `sprites/` | 7 sprites converted to RGB565 (64x64, 16 colours each) |
-| `tools/png_to_rgb565.py` | the converter, re-runnable whenever the artwork changes |
-| `Drivers/BSP/GFX01M2/ili9341.c` | added `ILI9341_DrawBitmap` - the supplied BSP had no way to draw an image at all |
+| `pet_core` | pet model: hunger/happiness, limits, rates, action effects |
+| `pet_anim` | animation sequencer + state→animation mapping |
+| `pet_render` | builds every animation frame by scaling one sprite |
+| `pet_view` | sprite selection and frame composition |
+| `pet_ui` | screen and menu state machine |
+| `pet_hud` | 240×320 layout and meter maths |
+| `pet_ctl` | applies an action to the pet and starts its animation |
+| `pet_screen` | draws the screen — the only HAL-facing pet module |
+| `main.c` | starts the pet, reads the joystick, runs the loop |
+| `sprites/` | 7 slime states + 2 HUD icons, all converted |
+| `tests/` | 303 checks across 7 suites, all passing |
+| `tools/png_to_rgb565.py` | the artwork converter, re-runnable |
+| `Drivers/BSP/GFX01M2/ili9341.c` | added `ILI9341_DrawBitmap` — the supplied BSP had no way to draw an image |
 
-None of the pet modules touch the HAL. They take a millisecond timestamp as an
-argument and hand back plain data, which is why the tests run on a laptop. The
-animation frames are produced by **scaling one sprite per state**, so there are no
-extra drawings to make.
-
----
-
-## Task 1 - wire it up in `main.c` (start here)
-
-This is the biggest job and the one that turns this from a library into a
-program. It's roughly 100 lines.
-
-Replace the `while (1)` demo loop at the bottom of `main.c`. Everything it calls
-already exists and is tested:
-
-```c
-static pet_t      pet;
-static pet_anim_t anim;
-static pet_ui_t   ui;
-
-pet_init(&pet, HAL_GetTick());
-pet_anim_start(&anim, PET_ANIM_IDLE, HAL_GetTick());
-pet_ui_init(&ui);
-
-while (1)
-{
-  uint32_t now = HAL_GetTick();
-
-  pet_tick(&pet, now);              /* advance hunger/happiness */
-  pet_anim_update(&anim, now);      /* advance the animation  */
-
-  pet_input_t in = read_input_event();   /* see below */
-  pet_ui_result_t r = pet_ui_handle(&ui, in, &pet);
-
-  if (r.restart) {
-    pet_restart(&pet, now);
-    pet_anim_start(&anim, PET_ANIM_RESTART, now);
-  } else if (r.action != PET_ACTION_NONE) {
-    bool ok = false;
-    switch (r.action) {
-      case PET_ACTION_FEED:  ok = pet_feed(&pet, portion_from_adc(), now); break;
-      case PET_ACTION_PLAY:  ok = pet_play(&pet, now);  break;
-      case PET_ACTION_CLEAN: ok = pet_clean(&pet, now); break;
-      default: break;
-    }
-    if (ok) { pet_anim_start(&anim, pet_anim_for_action(r.action), now); }
-  }
-
-  draw(&pet, &anim, &ui, r.redraw);
-}
-```
-
-Then delete the demo functions (`Demo_ColorBars`, `Demo_Shapes`, `Demo_Text`,
-`Demo_Joystick`) and `Joystick_Read` if you don't reuse it.
-
-### `read_input_event()`
-
-`Joystick_Read()` already exists in `main.c` and returns bit masks for all five
-directions - just map those onto `pet_input_t` (`PET_INPUT_UP`, `_DOWN`,
-`PET_INPUT_SELECT` for centre, etc).
-
-**Important: it must be edge triggered.** The loop runs thousands of times a
-second, so if you return `PET_INPUT_SELECT` on every pass while the button is
-held, one tap will feed the pet a few thousand times. Store the previous mask and
-only report a press on the transition from not-pressed to pressed.
-
-`PET_INPUT_BACK` is the user button `B1` (PC13). It is set up as a rising-edge
-interrupt in `MX_GPIO_Init`, **but the EXTI interrupt is never enabled or handled**
-- there is no `EXTI15_10_IRQHandler` in `stm32l4xx_it.c`. Poll it in the loop
-(simplest) or enable the EXTI yourself.
-
-### `draw()`
-
-```c
-static uint16_t fb[PET_SPRITE_W * PET_SPRITE_H];   /* 8 KB */
-
-pet_view_compose_stage(fb, PET_SPRITE_W, PET_SPRITE_H, &pet, &anim);
-ILI9341_DrawBitmap(sprite_x, sprite_y, PET_SPRITE_W, PET_SPRITE_H, fb);
-```
-
-Only redraw when something actually changed - `r.redraw` is true when the screen
-changed, and otherwise redraw when the animation frame index moved. A full-frame
-repaint every pass will make the display flicker and waste the whole SPI budget.
+Only `pet_screen.c` and `main.c` touch the hardware. Everything above them runs on
+a laptop, which is how the whole thing was built without a board.
 
 ---
 
-## Task 2 - the two peripherals
+## 1. Wire up the user button B1 (small)
 
-The brief requires **at least one analog input** and **at least one digital
-device on I2C/UART/SPI**. The code is written to accept these but nothing reads
-them yet. Decide on the parts first:
+`pet_ui` supports `PET_INPUT_BACK` — close the menu without acting — but nothing
+produces that event, so the path is unreachable.
 
-| Decision | Notes |
-|---|---|
-| Analog input + pin | `PC1`-`PC5`, `PA0`, `PA2`-`PA4` are free. Drives the feed portion, which the menu already displays. Values clamp to `PET_FEED_PORTION_MIN`..`MAX` (1-5). |
-| I2C device + address | MPU-6050 at `0x68` is the easy option. |
-| Optional third output | A PWM buzzer is easy marks but not required. |
+B1 is `PC13`. In `MX_GPIO_Init` it is set to `GPIO_MODE_IT_RISING`, **but the EXTI
+interrupt is never enabled and there is no `EXTI15_10_IRQHandler`**, so the
+interrupt never fires. Polling it is simpler:
+
+- add a `HAL_GPIO_ReadPin(B1_GPIO_Port, B1_Pin)` check to `Input_Read()` in `main.c`
+- the rising-edge config implies **pressed = `GPIO_PIN_SET`**, but confirm that on
+  real hardware before trusting it — the polarity has not been verified here
+- it needs the same edge-detection treatment as the joystick, or one press fires
+  hundreds of times
+
+---
+
+## 2. The two peripherals (the team's part)
+
+The brief needs **at least one analog input** and **at least one digital device on
+I2C, UART or SPI**. The LCD and its built-in joystick explicitly do not count — the
+handout says "in addition to the LCD and its built-in joystick".
+
+Nothing is chosen or wired yet. Whatever the team picks, the code is ready for it:
+
+```c
+/* The analog input feeds this. pet_feed() clamps it, so a noisy reading
+   just gives a bigger or smaller meal rather than breaking anything. */
+pet_ctl_action(&g_pet, PET_ACTION_FEED, portion_from_adc(), now);
+```
+
+On the **digital device on a bus**: a bare 7-segment display is GPIO, not a bus
+device, and would cost 8 pins. One with a **MAX7219** (SPI) or **HT16K33** (I2C)
+driver chip genuinely counts. A **TM1637** does not — its own datasheet says the
+protocol "is not equal to I2C bus protocol totally because there is no slave
+address".
 
 **Use `I2C1` remapped to `PB8`/`PB9`.** The CubeMX default is `PB6`/`PB7`, and
-**`PB6` is the joystick LEFT pin** - you'd lose the left direction, and `PB7` is
-`LD2`. Also enable the pull-ups: the joystick pins are active low with internal
-pull-ups.
-
-`pet_feed()` already clamps whatever the ADC gives it, so a noisy reading just
-means a bigger or smaller meal rather than anything breaking.
+**`PB6` is the joystick LEFT pin** — you would silently lose a direction.
 
 ---
 
-## Task 3 - draw the status readout and the menu
+## 3. Let a peripheral trigger an action directly (optional)
 
-Nothing draws the hunger/happiness values or the action menu yet. Everything you
-need is there:
+All three actions come from the menu at the moment. The brief scores "Feed plus two
+additional actions; each includes physical input", so if a peripheral is meant to
+trigger one directly, call the same entry point the menu uses:
 
-- `pet.hunger`, `pet.happiness` (0-100), `pet_state_name()`, `pet_mood_name()`
-- `pet_ui_item_count()`, `pet_ui_item_label(i)`, `pet_ui_cursor()`, `pet_ui_portion()`
-- `pet_ui_screen()` to tell you whether to draw the pet or the menu
-- `ILI9341_DrawString`, `ILI9341_DrawRect`, `ILI9341_FillRect`
+```c
+pet_ctl_action(&g_pet, PET_ACTION_PLAY, 1u, HAL_GetTick());
+```
 
-Suggested layout: sprite centred around `y = 60`, two labelled bars for the
-statistics, and the menu drawn over the middle of the screen when
-`pet_ui_screen() == PET_SCREEN_MENU`, with the row at `pet_ui_cursor()`
-highlighted.
-
-When the pet is finished, `pet_is_interactive()` returns false and `pet_ui` turns
-SELECT into a restart request - so show a "press select to restart" prompt on the
-death and runaway screens so the user knows.
+That is the whole interface. It applies the same state change and plays the same
+animation the menu would, so the pet behaves identically whichever input caused it.
+A refused action (pet dead or run away) does not animate.
 
 ---
 
-## Task 4 - the paperwork
+## 4. The paperwork
 
-- `README.md` still has about 18 `_TBD_` entries: the pet's **name**, its concept,
-  the three-actions table, the hunger/happiness **limits and rates**, the pin
-  assignment table, and the team member list. Almost all of it is now answerable
-  from the code - the limits, rates and action effects are all `#define`d at the
-  top of `Core/Inc/pet_core.h`.
-- `docs/ai-use-log.md` has two blank rows. The assignment wants at least one case
-  where AI output had to be corrected or rejected. There are three good ones
-  already recorded at the bottom of that file, plus the uint8 colour bug described
-  in the commit history.
-- Add the other team members as collaborators on the GitHub repo (needs their
-  usernames).
+- `README.md` still has `_TBD_` entries in the **team table** (names and GitHub
+  handles), and `docs/ai-use-log.md` has two blank rows. Everything else in the
+  README is now filled in from the code.
+- Add the other team members as collaborators on the GitHub repo.
+- The pet's name is still a working name (`Bloop`).
 
-## Task 5 - video and slides
+## 5. Video and slides
 
-Both need a working demo, so they come after task 1. The video is 5 marks and the
-slides are 10, so don't leave them to the last minute.
+Both need a working demo on hardware, so they come last. The video is 5 marks and
+the slides 10 — don't leave them to the last minute.
 
 ---
 
 ## Blocked on hardware
 
 **The morpho male headers are not soldered to the NUCLEO-L496ZG-P**, and they are
-required to attach the X-NUCLEO-GFX01M2. Until that's done, nobody can verify:
+required to attach the X-NUCLEO-GFX01M2. Until that happens, nobody can check:
 
 - that the panel lights up at all, and that **red and blue aren't swapped**
-- that the sprites look right on screen and the orientation is correct
-- that the joystick works
+- that the sprites and icons look right, and the orientation is correct
+- that the joystick and B1 work
 - any of the peripheral wiring
-- the demo itself
+- **the main loop has never once run on real hardware**
 
-Do this first if you can - it gates every visual check on the list.
+Everything compiles and links, but none of it has been observed working. Treat the
+first hardware session as a bring-up, not a formality.
 
 ---
 
 ## Things that will bite you
 
-1. **Never use `HAL_Delay` in the main loop.** The demo has `HAL_Delay(50)` in it;
-   that has to go. Everything is elapsed-time based so a blocked loop freezes the
-   pet's clock and the animation, and it fails the "interface stays responsive
-   while animating" requirement.
-2. **Don't hand-swap the byte order** in the sprite arrays. `ILI9341_DrawBitmap`
-   already converts RGB565 to what the panel wants. The arrays are plain RGB565 on
-   purpose. (The panel itself is configured BGR.)
-3. **`PET_STAGE_COLOR` in `pet_view.h` must match the converter's `--stage`.** It's
-   `0x1946` (`#1E2A32`) and the converter snaps every non-sprite pixel to exactly
-   that value. Change one without the other and you get a visible rectangle around
-   the pet.
-4. **The sprites are opaque**, composited onto the stage colour at conversion time.
-   Don't add a transparency test - the whole point is one SPI transfer per sprite.
+1. **Never add `HAL_Delay` to the main loop.** Everything is elapsed-time driven,
+   so blocking freezes the pet's clock and the animation, and it fails the
+   "interface stays responsive while animating" requirement. The demo's
+   `HAL_Delay(50)` is gone; don't reintroduce the pattern.
+2. **The joystick must stay edge-triggered.** `Input_Read()` reports only on the
+   released-to-held transition. Returning the held state every pass acts on one
+   press hundreds of times.
+3. **Don't hand-swap the sprite byte order.** `ILI9341_DrawBitmap` converts RGB565
+   to what the panel wants. The arrays are plain RGB565 on purpose.
+4. **`PET_STAGE_COLOR` in `pet_view.h` must match the converter's `--stage`.** It is
+   `0x1946` and the converter snaps every non-sprite pixel to exactly that value.
+   Change one without the other and a rectangle shows around the pet.
 5. **Don't enable USB host.** It reclaims `PA9`, which is also the LCD chip select,
-   and the display goes blank.
-6. **`PA9` is LCD_CS *and* USB_VBUS** on this board - see the note at the top of
-   `gfx01m2_conf.h`. Another reason to leave USB alone.
-7. **Watch the SRAM.** A full-frame `240x320` RGB565 buffer is **150 KB** of the
-   320 KB available, and two of them is 300 KB. Either draw the pet into a small
-   sprite-sized buffer (8 KB for 64x64, which is what `pet_view_compose_stage` is
-   written for) or plan the memory carefully.
-8. **Don't edit the files CubeMX generates**, and don't edit `syscalls.c` or the
-   HAL drivers in `Drivers/STM32L4xx_HAL_Driver/`. New sources go in
-   `CMakeLists.txt` under `target_sources`, not in `cmake/stm32cubemx/`.
+   and the display goes blank. `USB_HOST` is still enabled in the `.ioc`.
+6. **Watch the panel update cost.** A full 240×320 repaint is **692 ms** over SPI and
+   one 64×64 sprite blit is **37 ms**. `pet_screen_update()` only redraws what
+   changed for that reason — keep it that way.
+7. **The stack is 2 KB.** The pet frame buffer is `static` for that reason. No large
+   locals.
+8. **Don't edit the files CubeMX generates**, or `syscalls.c`, or the HAL drivers.
+   New sources go in `CMakeLists.txt` under `target_sources`, **not** in
+   `cmake/stm32cubemx/CMakeLists.txt`.
 
 ---
 
 ## Building and testing
 
-**Host tests** - no board needed, run these after every change:
+**Host tests** — no board needed, run these after every change:
 
 ```sh
 cc -std=c11 -Wall -Wextra -I Core/Inc tests/test_pet_core.c Core/Src/pet_core.c \
    -o /tmp/test_pet_core && /tmp/test_pet_core
 ```
 
-Same pattern for `test_pet_anim` (add `pet_core.c`), `test_pet_render` (add
-`pet_anim.c pet_core.c`) and `test_pet_ui` (add `pet_core.c`). For
-`test_pet_view` you also need `-I sprites` and `sprites/slime_*.c`.
+Same pattern for the others:
 
-Expected totals: **46 / 54 / 38 / 60 / 27 = 225 checks.**
+| Suite | Extra sources to add |
+|---|---|
+| `test_pet_anim` | `pet_core.c` |
+| `test_pet_render` | `pet_anim.c pet_core.c` |
+| `test_pet_ui` | `pet_core.c` |
+| `test_pet_hud` | `pet_ui.c pet_core.c` |
+| `test_pet_ctl` | `pet_anim.c pet_core.c` |
+| `test_pet_view` | `pet_render.c pet_anim.c pet_core.c`, plus `-I sprites` and `sprites/slime_*.c` |
 
-**Firmware build** - use the STM32 VS Code extension, or from a terminal with the
-CMake preset:
+Expected totals: **46 / 54 / 38 / 60 / 27 / 39 / 39 = 303 checks.**
+
+**Firmware build** — use the STM32 VS Code extension, or:
 
 ```sh
 cmake --build build/Debug
 ```
 
-**Regenerating sprites** after changing artwork:
+Current build: **78,760 bytes of flash, 12,352 bytes of RAM.**
+
+**Regenerating artwork** after changing it:
 
 ```sh
 python3 tools/png_to_rgb565.py docs/artwork/slime-pose-set-v1.png \
@@ -246,4 +189,4 @@ python3 tools/png_to_rgb565.py docs/artwork/slime-pose-set-v1.png \
 
 **Always check the preview PNG after converting.** `sprites/<name>_preview.png` is
 decoded back out of the emitted RGB565, so it shows exactly what the board will
-draw - if the colours look wrong there, they're wrong.
+draw. If the colours look wrong there, they are wrong.

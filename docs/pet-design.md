@@ -102,6 +102,10 @@ method was checked against the driver's own constants: `#FF0000 → 0xF800`
 
 ## 6. Screen layout (240 × 320 portrait)
 
+The authoritative values are the `PET_HUD_*` constants in
+`Core/Inc/pet_hud.h`; the table below is the original plan and has been
+superseded where the two disagree.
+
 | Region | Extent | Contents | Redraw strategy |
 |---|---|---|---|
 | Stage | y 0–179 | the slime, centred, 64×64 or 96×96 | blit the sprite region only |
@@ -169,9 +173,14 @@ of flash is left unused.
 | Display driver sprite blit (`ILI9341_DrawBitmap`) | ✅ implemented |
 | PNG → RGB565 converter (`tools/png_to_rgb565.py`) | ✅ implemented |
 | Artwork: all 7 states drawn and converted | ✅ done |
-| **`main.c` integration** | ❌ **not done — nothing calls the modules yet** |
-| Analog / I2C input drivers | 🔌 needs hardware |
-| Status meters and menu drawn on screen | ❌ to do |
+| HUD layout and meter maths (`Core/Src/pet_hud.c`) | ✅ implemented, 39 host checks |
+| Action handling (`Core/Src/pet_ctl.c`) | ✅ implemented, 39 host checks |
+| Screen drawing (`Core/Src/pet_screen.c`) | ✅ implemented |
+| HUD icons (berry, heart) | ✅ drawn and converted |
+| **`main.c` integration** | ✅ **done — the pet runs** |
+| User button B1 wired to `PET_INPUT_BACK` | ❌ not wired up |
+| Analog / I2C input drivers | 🔌 needs hardware — the team's part |
+| Verified on real hardware | ❌ blocked on the unsoldered headers |
 
-**225 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for the
-outstanding work.
+**303 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
+still outstanding.
