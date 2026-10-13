@@ -1,16 +1,14 @@
 /**
- ******************************************************************************
  * @file    test_pet_view.c
- * @brief   Host test suite for sprite selection and frame composition.
+ * @brief   Tests for sprite selection and frame building.
  *
- * Asserting which artwork gets chosen for each state is what stops a dead pet
- * being drawn as a happy one - a bug that is invisible in a unit test of the
- * model alone, because the model is correct either way.
+ * These check which sprite gets picked for each state. That matters because
+ * drawing a dead pet with the happy pose is a bug the model tests can't catch -
+ * the model is right either way, it's the choice of image that's wrong.
  *
  *     cc -std=c11 -Wall -Wextra -I Core/Inc -I sprites tests/test_pet_view.c \
  *        Core/Src/pet_view.c Core/Src/pet_render.c Core/Src/pet_anim.c \
- *        Core/Src/pet_core.c sprites/slime_&lt;name&gt;.c -o /tmp/test_pet_view
- ******************************************************************************
+ *        Core/Src/pet_core.c sprites/slime_NAME.c -o /tmp/test_pet_view
  */
 #include <stdio.h>
 
@@ -34,32 +32,30 @@ static int g_fail = 0;
             printf("  [PASS] %s\n", (msg));                               \
         } else {                                                          \
             g_fail++;                                                     \
-            printf("  [FAIL] %s   (%s:%d)\n", (msg), __FILE__, __LINE__);  \
+            printf("  [FAIL] %s   (%s:%d)\n", (msg), __FILE__, __LINE__); \
         }                                                                 \
     } while (0)
 
 static void section(const char *name) { printf("\n%s\n", name); }
 
-/* --------------------------------------------------------------------------- */
-
 static void test_mood_mapping(void)
 {
-    section("Mood to artwork mapping");
-    CHECK(pet_view_sprite_for_mood(PET_MOOD_CONTENT)   == slime_content,   "content uses the idle pose");
-    CHECK(pet_view_sprite_for_mood(PET_MOOD_DELIGHTED) == slime_delighted, "delighted uses the happy pose");
-    CHECK(pet_view_sprite_for_mood(PET_MOOD_HUNGRY)    == slime_hungry,    "hungry uses the hungry pose");
-    CHECK(pet_view_sprite_for_mood(PET_MOOD_MISERABLE) == slime_miserable, "miserable uses the sad pose");
+    section("Mood to sprite");
+    CHECK(pet_view_sprite_for_mood(PET_MOOD_CONTENT)   == slime_content,   "CONTENT -> slime_content");
+    CHECK(pet_view_sprite_for_mood(PET_MOOD_DELIGHTED) == slime_delighted, "DELIGHTED -> slime_delighted");
+    CHECK(pet_view_sprite_for_mood(PET_MOOD_HUNGRY)    == slime_hungry,    "HUNGRY -> slime_hungry");
+    CHECK(pet_view_sprite_for_mood(PET_MOOD_MISERABLE) == slime_miserable, "MISERABLE -> slime_miserable");
 }
 
 static void test_anim_mapping(void)
 {
-    section("Animation to artwork mapping");
-    CHECK(pet_view_sprite_for_anim(PET_ANIM_FEED)    == slime_eating,  "feeding has its own pose");
-    CHECK(pet_view_sprite_for_anim(PET_ANIM_DEATH)   == slime_dead,    "death has its own pose");
-    CHECK(pet_view_sprite_for_anim(PET_ANIM_RUNAWAY) == slime_runaway, "runaway has its own pose");
-    CHECK(pet_view_sprite_for_anim(PET_ANIM_IDLE)  == NULL, "idle defers to the mood sprite");
-    CHECK(pet_view_sprite_for_anim(PET_ANIM_PLAY)  == NULL, "play is a transform of the mood sprite");
-    CHECK(pet_view_sprite_for_anim(PET_ANIM_CLEAN) == NULL, "clean is a transform of the mood sprite");
+    section("Animation to sprite");
+    CHECK(pet_view_sprite_for_anim(PET_ANIM_FEED)    == slime_eating,  "FEED -> slime_eating");
+    CHECK(pet_view_sprite_for_anim(PET_ANIM_DEATH)   == slime_dead,    "DEATH -> slime_dead");
+    CHECK(pet_view_sprite_for_anim(PET_ANIM_RUNAWAY) == slime_runaway, "RUNAWAY -> slime_runaway");
+    CHECK(pet_view_sprite_for_anim(PET_ANIM_IDLE)  == NULL, "IDLE has no sprite of its own, it uses the mood");
+    CHECK(pet_view_sprite_for_anim(PET_ANIM_PLAY)  == NULL, "PLAY uses the mood sprite with a transform");
+    CHECK(pet_view_sprite_for_anim(PET_ANIM_CLEAN) == NULL, "CLEAN uses the mood sprite with a transform");
 }
 
 static void test_selection_follows_state(void)
@@ -67,19 +63,18 @@ static void test_selection_follows_state(void)
     pet_t p;
     pet_anim_t a;
 
-    section("Selection follows the pet's actual state");
+    section("Selection follows the pet's state");
     pet_init(&p, 0);
     pet_anim_start(&a, PET_ANIM_IDLE, 0);
     CHECK(pet_view_sprite(&p, &a) == slime_delighted,
-          "a freshly initialised pet (happiness 75) shows the delighted pose");
+          "a new pet is at happiness 75, so it shows the delighted pose");
 
     { pet_t h; pet_init(&h, 0); pet_tick(&h, 70000);   /* hunger 83 */
       CHECK(pet_view_sprite(&h, &a) == slime_hungry, "a very hungry pet shows the hungry pose"); }
 
-    /* A neglected pet starves before it can get this unhappy: with the documented
-     * rates it dies at 90 s while happiness would not hit the miserable
-     * threshold until 100 s. So misery has to be reached deliberately, by
-     * feeding enough to stay alive while happiness drains. */
+    /* A pet left alone starves before it gets this unhappy - it dies at 90 s but
+       happiness wouldn't be low enough until 100 s. So feed it enough to stay
+       alive and let happiness drain. */
     { pet_t m; uint32_t t; bool miserable = false;
       pet_init(&m, 0);
       for (t = 1000; t <= 600000; t += 1000) {
@@ -88,8 +83,8 @@ static void test_selection_follows_state(void)
           if (m.state != PET_ALIVE) { break; }
           if (pet_mood(&m) == PET_MOOD_MISERABLE) { miserable = true; break; }
       }
-      CHECK(miserable, "the pet reached the miserable mood while still alive");
-      CHECK(pet_view_sprite(&m, &a) == slime_miserable, "a miserable pet shows the sad pose"); }
+      CHECK(miserable, "pet got miserable while still alive");
+      CHECK(pet_view_sprite(&m, &a) == slime_miserable, "so it shows the miserable pose"); }
 }
 
 static void test_terminal_states_win(void)
@@ -97,16 +92,16 @@ static void test_terminal_states_win(void)
     pet_t p;
     pet_anim_t a;
 
-    section("A finished life overrides whatever animation is in flight");
+    section("A finished pet overrides whatever animation is running");
 
     pet_init(&p, 0);
     pet_anim_start(&a, PET_ANIM_FEED, 1000);
-    CHECK(pet_view_sprite(&p, &a) == slime_eating, "while feeding, the eating pose is shown");
+    CHECK(pet_view_sprite(&p, &a) == slime_eating, "while feeding it shows the eating pose");
 
-    pet_tick(&p, 90000);                     /* starved mid-feed */
-    CHECK(p.state == PET_DEAD, "the pet has died");
+    pet_tick(&p, 90000);                     /* starved part way through the feed */
+    CHECK(p.state == PET_DEAD, "pet has died");
     CHECK(pet_view_sprite(&p, &a) == slime_dead,
-          "the dead pose is shown, not the feeding pose");
+          "it shows the dead pose, not the feeding pose");
 
     { pet_t r; uint32_t t; bool ran = false;
       pet_init(&r, 0);
@@ -117,19 +112,19 @@ static void test_terminal_states_win(void)
           if (r.state == PET_DEAD) { break; }
       }
       pet_anim_start(&a, PET_ANIM_FEED, t);
-      CHECK(ran, "the pet reached the runaway state");
+      CHECK(ran, "pet reached the runaway state");
       CHECK(pet_view_sprite(&r, &a) == slime_runaway,
-            "the runaway pose is shown, not the feeding pose"); }
+            "it shows the runaway pose, not the feeding pose"); }
 }
 
 static void test_frame_index(void)
 {
     pet_anim_t a;
-    section("Frame index reporting");
-    CHECK(pet_view_frame(NULL) == 0, "no animation reports frame 0");
+    section("Frame index");
+    CHECK(pet_view_frame(NULL) == 0, "no animation gives frame 0");
 
     pet_anim_start(&a, PET_ANIM_PLAY, 0);
-    CHECK(pet_view_frame(&a) == 0, "the first frame of play");
+    CHECK(pet_view_frame(&a) == 0, "starts on frame 0");
     pet_anim_update(&a, 100);
     CHECK(pet_view_frame(&a) == 1, "advances with time");
     pet_anim_update(&a, 500);
@@ -140,12 +135,11 @@ static void test_composition(void)
 {
     pet_t p;
     pet_anim_t a;
-    /* Large enough to hold one stage-sized sprite. */
     static uint16_t fb[PET_SPRITE_W * PET_SPRITE_H];
     uint32_t i, non_bg = 0;
     int all_bg = 1;
 
-    section("Frame composition");
+    section("Building a frame");
     pet_init(&p, 0);
     pet_anim_start(&a, PET_ANIM_IDLE, 0);
     pet_view_compose_stage(fb, PET_SPRITE_W, PET_SPRITE_H, &p, &a);
@@ -155,12 +149,12 @@ static void test_composition(void)
         all_bg = 0;
         non_bg++;
     }
-    printf("         %u of %u pixels differ from the stage colour\n",
+    printf("         %u of %u pixels differ from the background\n",
            non_bg, (unsigned)(PET_SPRITE_W * PET_SPRITE_H));
-    CHECK(!all_bg, "the composed frame actually contains the sprite");
-    CHECK(non_bg > 500, "a meaningful fraction of the frame is sprite");
+    CHECK(!all_bg, "the finished frame actually has the sprite in it");
+    CHECK(non_bg > 500, "a decent chunk of the frame is sprite");
 
-    /* A dead pet must compose differently from a living one. */
+    /* A dead pet has to build a different frame from a living one. */
     {
         static uint16_t fb2[PET_SPRITE_W * PET_SPRITE_H];
         int differs, k;
@@ -170,19 +164,17 @@ static void test_composition(void)
         for (k = 0; k < (int)(PET_SPRITE_W * PET_SPRITE_H); k++) {
             if (fb2[k] != fb[k]) { differs++; }
         }
-        CHECK(differs > 100, "a dead pet composes a visibly different frame");
+        CHECK(differs > 100, "a dead pet builds a clearly different frame");
     }
 
-    section("Composition refuses bad input");
+    section("Bad input is refused");
     pet_view_compose_stage(NULL, PET_SPRITE_W, PET_SPRITE_H, &p, &a);
-    CHECK(1, "a NULL framebuffer is refused rather than dereferenced");
+    CHECK(1, "a NULL framebuffer is refused, not dereferenced");
 }
-
-/* --------------------------------------------------------------------------- */
 
 int main(void)
 {
-    printf("pet_view host test suite\n");
+    printf("pet_view tests\n");
 
     test_mood_mapping();
     test_anim_mapping();

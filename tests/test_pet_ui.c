@@ -1,12 +1,10 @@
 /**
- ******************************************************************************
  * @file    test_pet_ui.c
- * @brief   Host test suite for the screen and menu state machine.
+ * @brief   Tests for the screen and menu state machine.
  *
  *     cc -std=c11 -Wall -Wextra -I Core/Inc tests/test_pet_ui.c \
  *        Core/Src/pet_ui.c Core/Src/pet_core.c -o /tmp/test_pet_ui \
  *        && /tmp/test_pet_ui
- ******************************************************************************
  */
 #include <stdio.h>
 #include <string.h>
@@ -23,20 +21,20 @@ static int g_fail = 0;
             printf("  [PASS] %s\n", (msg));                               \
         } else {                                                          \
             g_fail++;                                                     \
-            printf("  [FAIL] %s   (%s:%d)\n", (msg), __FILE__, __LINE__);  \
+            printf("  [FAIL] %s   (%s:%d)\n", (msg), __FILE__, __LINE__); \
         }                                                                 \
     } while (0)
 
 static void section(const char *name) { printf("\n%s\n", name); }
 
-/* Drive the pet to a terminal state without waiting for real time. */
+/* Starve the pet without waiting around in real time. */
 static void kill_pet(pet_t *p) { pet_init(p, 0); pet_tick(p, 200000); }
 
 static void test_initial_state(void)
 {
     pet_ui_t ui;
 
-    section("Initial state");
+    section("Starting state");
     pet_ui_init(&ui);
     CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "starts on the pet screen");
     CHECK(pet_ui_cursor(&ui) == 0, "cursor starts on the first row");
@@ -54,16 +52,16 @@ static void test_opening_the_menu(void)
 
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_UP, &p);
       CHECK(r.action == PET_ACTION_NONE && !r.restart && !r.redraw,
-            "an unused input on the pet screen does nothing at all"); }
+            "an input that isn't used here does nothing"); }
 
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_NONE, &p);
       CHECK(!r.redraw && r.action == PET_ACTION_NONE,
-            "an idle pass produces neither an action nor a redraw"); }
+            "a pass with no input gives no action and no redraw"); }
 
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
       CHECK(pet_ui_screen(&ui) == PET_SCREEN_MENU, "select opens the menu");
-      CHECK(r.redraw, "opening the menu asks for a redraw");
-      CHECK(r.action == PET_ACTION_NONE, "opening the menu does not act"); }
+      CHECK(r.redraw, "opening the menu wants a redraw");
+      CHECK(r.action == PET_ACTION_NONE, "opening the menu doesn't do an action"); }
 }
 
 static void test_navigation_wraps(void)
@@ -72,7 +70,7 @@ static void test_navigation_wraps(void)
     pet_t p;
     uint8_t n;
 
-    section("Navigation wraps at both ends");
+    section("Moving the cursor wraps round at both ends");
     pet_ui_init(&ui);
     pet_init(&p, 0);
     n = pet_ui_item_count();
@@ -82,15 +80,15 @@ static void test_navigation_wraps(void)
         int i;
         for (i = 0; i < n; i++) {
             pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
-            CHECK(r.redraw, "moving the cursor asks for a redraw");
+            CHECK(r.redraw, "moving the cursor wants a redraw");
             CHECK(pet_ui_cursor(&ui) == (uint8_t)((i + 1) % n),
-                  "down advances the cursor and wraps to the top");
+                  "down moves on and wraps back to the top");
         }
     }
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_UP, &p);
       CHECK(pet_ui_cursor(&ui) == (uint8_t)(n - 1u),
             "up from the first row wraps to the last");
-      CHECK(r.redraw, "wrapping up asks for a redraw"); }
+      CHECK(r.redraw, "wrapping up wants a redraw"); }
 }
 
 static void test_every_row_commits_its_action(void)
@@ -99,7 +97,7 @@ static void test_every_row_commits_its_action(void)
     pet_t p;
     uint8_t i;
 
-    section("Every menu row commits its own action and returns to the pet");
+    section("Every row does its own action and goes back to the pet");
     for (i = 0; i < pet_ui_item_count(); i++) {
         pet_ui_result_t r;
         pet_init(&p, 0);
@@ -113,17 +111,17 @@ static void test_every_row_commits_its_action(void)
 
         printf("         row %u: %-6s -> %s\n", i,
                pet_ui_item_label(i), pet_action_name(r.action));
-        CHECK(r.action == pet_ui_item_action(i), "the committed action matches the row");
-        CHECK(r.action != PET_ACTION_NONE, "the row maps to a real action");
-        CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "committing returns to the pet screen");
-        CHECK(!r.restart, "committing is not a restart");
+        CHECK(r.action == pet_ui_item_action(i), "the action matches the row");
+        CHECK(r.action != PET_ACTION_NONE, "the row does a real action");
+        CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "it goes back to the pet screen");
+        CHECK(!r.restart, "confirming isn't a restart");
     }
 
-    section("The menu covers the three required interactions");
-    CHECK(pet_ui_item_count() == 3, "exactly three actions are offered");
-    CHECK(pet_ui_item_action(0) == PET_ACTION_FEED,  "Feed is available");
-    CHECK(pet_ui_item_action(1) == PET_ACTION_PLAY,  "Play is available");
-    CHECK(pet_ui_item_action(2) == PET_ACTION_CLEAN, "Clean is available");
+    section("The menu has the three required interactions");
+    CHECK(pet_ui_item_count() == 3, "three actions on the menu");
+    CHECK(pet_ui_item_action(0) == PET_ACTION_FEED,  "Feed is on it");
+    CHECK(pet_ui_item_action(1) == PET_ACTION_PLAY,  "Play is on it");
+    CHECK(pet_ui_item_action(2) == PET_ACTION_CLEAN, "Clean is on it");
 }
 
 static void test_cancel(void)
@@ -131,17 +129,17 @@ static void test_cancel(void)
     pet_ui_t ui;
     pet_t p;
 
-    section("Back cancels without acting");
+    section("Back cancels without doing anything");
     pet_ui_init(&ui);
     pet_init(&p, 0);
     (void)pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
     (void)pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
 
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_BACK, &p);
-      CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "back returns to the pet screen");
-      CHECK(r.action == PET_ACTION_NONE, "back commits nothing");
-      CHECK(!r.restart, "back is not a restart");
-      CHECK(r.redraw, "back asks for a redraw"); }
+      CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "back goes to the pet screen");
+      CHECK(r.action == PET_ACTION_NONE, "back does no action");
+      CHECK(!r.restart, "back isn't a restart");
+      CHECK(r.redraw, "back wants a redraw"); }
 }
 
 static void test_terminal_pet_locks_the_menu(void)
@@ -149,21 +147,21 @@ static void test_terminal_pet_locks_the_menu(void)
     pet_ui_t ui;
     pet_t p;
 
-    section("A finished pet locks the menu out and offers a restart");
+    section("A finished pet can't open the menu and offers a restart");
     pet_ui_init(&ui);
     kill_pet(&p);
-    CHECK(!pet_is_interactive(&p), "the pet really is in a terminal state");
+    CHECK(!pet_is_interactive(&p), "the pet is really finished");
 
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
-      CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "select does not open the menu");
-      CHECK(r.restart, "select on a finished pet requests a restart");
-      CHECK(r.action == PET_ACTION_NONE, "a restart is not a menu action"); }
+      CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "select doesn't open the menu");
+      CHECK(r.restart, "select on a finished pet asks for a restart");
+      CHECK(r.action == PET_ACTION_NONE, "a restart isn't a menu action"); }
 
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
       CHECK(!r.restart && r.action == PET_ACTION_NONE,
-            "ordinary navigation cannot restart the pet"); }
+            "moving the cursor can't restart the pet"); }
 
-    /* And the same for a pet that ran away rather than starved. */
+    /* Same again for a pet that ran away instead of starving. */
     { pet_t rp; uint32_t t; bool ran = false;
       pet_init(&rp, 0);
       for (t = 1000; t <= 900000; t += 1000) {
@@ -172,11 +170,11 @@ static void test_terminal_pet_locks_the_menu(void)
           if (rp.state == PET_RUNAWAY) { ran = true; break; }
           if (rp.state == PET_DEAD) { break; }
       }
-      CHECK(ran, "the pet reached the runaway ending");
+      CHECK(ran, "pet reached the runaway ending");
       pet_ui_init(&ui);
       { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_SELECT, &rp);
-        CHECK(r.restart, "a runaway pet also offers a restart");
-        CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "and does not open the menu"); } }
+        CHECK(r.restart, "a runaway pet offers a restart too");
+        CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "and still doesn't open the menu"); } }
 }
 
 static void test_death_closes_an_open_menu(void)
@@ -184,7 +182,7 @@ static void test_death_closes_an_open_menu(void)
     pet_ui_t ui;
     pet_t p;
 
-    section("A pet that dies while the menu is open closes the menu");
+    section("If the pet dies with the menu open, the menu closes");
     pet_ui_init(&ui);
     pet_init(&p, 0);
     (void)pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
@@ -195,49 +193,47 @@ static void test_death_closes_an_open_menu(void)
 
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
       CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET,
-            "the menu closes itself so the ending is not hidden");
-      CHECK(r.action == PET_ACTION_NONE, "closing did not commit the highlighted row");
-      CHECK(r.redraw, "closing asks for a redraw"); }
+            "the menu closes so the ending isn't hidden behind it");
+      CHECK(r.action == PET_ACTION_NONE, "closing didn't run the highlighted row");
+      CHECK(r.redraw, "closing wants a redraw"); }
 }
 
 static void test_portion(void)
 {
     pet_ui_t ui;
 
-    section("The analog input's portion is shown and clamped");
+    section("The analog input's portion is stored and clamped");
     pet_ui_init(&ui);
     pet_ui_set_portion(&ui, 3);
-    CHECK(pet_ui_portion(&ui) == 3, "a valid portion is stored");
+    CHECK(pet_ui_portion(&ui) == 3, "a normal portion is stored");
 
     pet_ui_set_portion(&ui, 0);
-    CHECK(pet_ui_portion(&ui) == PET_FEED_PORTION_MIN, "below range clamps up");
+    CHECK(pet_ui_portion(&ui) == PET_FEED_PORTION_MIN, "too small clamps up to the minimum");
     pet_ui_set_portion(&ui, 200);
-    CHECK(pet_ui_portion(&ui) == PET_FEED_PORTION_MAX, "above range clamps down");
+    CHECK(pet_ui_portion(&ui) == PET_FEED_PORTION_MAX, "too big clamps down to the maximum");
 }
 
 static void test_labels_are_usable(void)
 {
     uint8_t i;
 
-    section("Menu labels are present and distinct");
+    section("Menu labels are there and all different");
     for (i = 0; i < pet_ui_item_count(); i++) {
         const char *a = pet_ui_item_label(i);
         uint8_t k;
-        CHECK(a != NULL && a[0] != '\0', "the row has a non-empty label");
+        CHECK(a != NULL && a[0] != '\0', "the row has a label");
         for (k = 0; k < i; k++) {
             const char *b = pet_ui_item_label(k);
-            CHECK(strcmp(a, b) != 0, "labels are not duplicated");
+            CHECK(strcmp(a, b) != 0, "the labels aren't the same");
         }
     }
-    CHECK(pet_ui_item_label(200) != NULL, "an out-of-range row label is clamped, not NULL");
-    CHECK(pet_ui_item_action(200) == PET_ACTION_NONE, "an out-of-range row has no action");
+    CHECK(pet_ui_item_label(200) != NULL, "a row number out of range clamps, doesn't return NULL");
+    CHECK(pet_ui_item_action(200) == PET_ACTION_NONE, "a row number out of range has no action");
 }
-
-/* --------------------------------------------------------------------------- */
 
 int main(void)
 {
-    printf("pet_ui host test suite\n");
+    printf("pet_ui tests\n");
 
     test_initial_state();
     test_opening_the_menu();

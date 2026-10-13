@@ -1,15 +1,10 @@
 /**
- ******************************************************************************
  * @file    test_pet_render.c
- * @brief   Host test suite for the sprite transform engine.
- *
- * The engine fills plain pixel buffers, so its geometry is verifiable without
- * the board: we can assert exactly which source pixel lands where.
+ * @brief   Tests for the sprite scaler, checking exactly which pixel lands where.
  *
  *     cc -std=c11 -Wall -Wextra -I Core/Inc tests/test_pet_render.c \
  *        Core/Src/pet_render.c Core/Src/pet_anim.c Core/Src/pet_core.c \
  *        -o /tmp/test_pet_render && /tmp/test_pet_render
- ******************************************************************************
  */
 #include <stdio.h>
 #include <string.h>
@@ -35,8 +30,6 @@ static void section(const char *name) { printf("\n%s\n", name); }
 
 #define BG 0xBEEFu
 
-/* --------------------------------------------------------------------------- */
-
 static void test_identity(void)
 {
     uint16_t src[4 * 4], dst[4 * 4];
@@ -45,10 +38,9 @@ static void test_identity(void)
 
     for (i = 0; i < 16; i++) { src[i] = (uint16_t)(0x1000 + i); }
 
-    section("Identity transform (scale 256 = unchanged)");
+    section("Scale 256 means unchanged");
     pet_render_sprite_scaled(dst, 4, 4, src, 4, 4, &one, BG);
-    CHECK(memcmp(dst, src, sizeof(src)) == 0,
-          "a 1:1 transform reproduces the source exactly");
+    CHECK(memcmp(dst, src, sizeof(src)) == 0, "the result is identical to the source");
 }
 
 static void test_bottom_anchor(void)
@@ -59,13 +51,13 @@ static void test_bottom_anchor(void)
 
     for (i = 0; i < 16; i++) { src[i] = (uint16_t)(0x2000 + i); }
 
-    section("Bottom anchor and background fill");
+    section("Sprite sits on the bottom edge, rest is background");
     pet_render_sprite_scaled(dst, 4, 8, src, 4, 4, &one, BG);
 
     CHECK(dst[0] == BG && dst[7] == BG && dst[15] == BG,
-          "the area above the sprite is painted with the stage colour");
+          "the space above the sprite is filled with the background colour");
     CHECK(memcmp(&dst[4 * 4], src, sizeof(src)) == 0,
-          "the sprite sits flush against the bottom edge");
+          "the sprite ends up flush with the bottom");
 }
 
 static void test_upscale_no_holes(void)
@@ -75,19 +67,19 @@ static void test_upscale_no_holes(void)
 
     src[0] = 0x1111; src[1] = 0x2222; src[2] = 0x3333; src[3] = 0x4444;
 
-    section("Upscaling fills every destination pixel (no holes)");
+    section("Enlarging leaves no unpainted pixels");
     pet_render_sprite_scaled(dst, 4, 4, src, 2, 2, &x2, BG);
 
     {
         int holes = 0, i;
         for (i = 0; i < 16; i++) { if (dst[i] == BG) { holes++; } }
-        CHECK(holes == 0, "a 2x enlargement leaves no unpainted pixel");
+        CHECK(holes == 0, "doubling a 2x2 leaves no background showing");
     }
-    /* Nearest neighbour: each source pixel becomes a 2x2 block. */
+    /* Nearest neighbour, so each source pixel becomes a 2x2 block. */
     CHECK(dst[0] == 0x1111 && dst[1] == 0x1111 && dst[4] == 0x1111,
           "the first source pixel becomes a 2x2 block");
     CHECK(dst[3] == 0x2222 && dst[15] == 0x4444,
-          "the last source pixel lands in the far corner");
+          "the last source pixel ends up in the far corner");
 }
 
 static void test_downscale(void)
@@ -100,15 +92,15 @@ static void test_downscale(void)
         for (x = 0; x < 4; x++) { src[y * 4 + x] = (uint16_t)(0x3000 + y * 10 + x); }
     }
 
-    section("Downscaling halves the sprite and centres it");
+    section("Halving the sprite, still bottom centred");
     pet_render_sprite_scaled(dst, 4, 4, src, 4, 4, &half, BG);
 
-    /* 4x4 at half scale is 2x2, anchored bottom-centre: columns 1-2, rows 2-3. */
+    /* 4x4 at half scale is 2x2, so columns 1-2 and rows 2-3. */
     CHECK(dst[0] == BG && dst[3] == BG, "the outer columns are background");
     CHECK(dst[2 * 4 + 1] == src[0] && dst[2 * 4 + 2] == src[2],
-          "the surviving pixels are evenly sampled from the source");
+          "the kept pixels are sampled evenly from the source");
     CHECK(dst[3 * 4 + 1] == src[2 * 4 + 0] && dst[3 * 4 + 2] == src[2 * 4 + 2],
-          "the reduced sprite sits on the bottom edge");
+          "the smaller sprite still sits on the bottom edge");
 }
 
 static void test_offset(void)
@@ -120,46 +112,45 @@ static void test_offset(void)
 
     for (i = 0; i < 16; i++) { src[i] = (uint16_t)(0x4000 + i); }
 
-    section("Vertical offset (used for the jump in PLAY)");
+    section("Vertical offset, used for the jump in PLAY");
 
-    /* On a 4x8 canvas a 4x4 sprite is bottom-anchored into rows 4-7. */
+    /* 4x4 sprite on a 4x8 canvas sits in rows 4-7. */
     pet_render_sprite_scaled(base, 4, 8, src, 4, 4, &one, BG);
     CHECK(memcmp(&base[16], src, sizeof(src)) == 0,
-          "with no offset the sprite occupies the bottom rows");
+          "with no offset the sprite is in the bottom rows");
 
-    /* A -4 offset lifts it by exactly four rows, into rows 0-3. */
+    /* -4 lifts it by four rows, into rows 0-3. */
     pet_render_sprite_scaled(lifted, 4, 8, src, 4, 4, &up, BG);
     CHECK(memcmp(&lifted[0], src, sizeof(src)) == 0,
-          "a -4 offset lifts the sprite by exactly four rows");
-    CHECK(lifted[16] == BG,
-          "the rows it vacated are repainted with the stage colour");
+          "an offset of -4 lifts it by exactly four rows");
+    CHECK(lifted[16] == BG, "the rows it left are painted back to background");
 }
 
 static void test_degenerate_cases(void)
 {
     uint16_t src[4 * 4], dst[4 * 4];
     const pet_xform_t zero = { 0, 256, 0, 0 };
-    const pet_xform_t huge = { 256, 256, 400, 400 };   /* entirely off-canvas */
+    const pet_xform_t huge = { 256, 256, 400, 400 };   /* way off the canvas */
     int i;
 
     for (i = 0; i < 16; i++) { src[i] = 0x5555; }
 
-    section("Degenerate inputs do not crash or corrupt the buffer");
+    section("Odd inputs don't crash or wreck the buffer");
     pet_render_sprite_scaled(dst, 4, 4, src, 4, 4, &zero, BG);
-    CHECK(dst[0] == BG && dst[15] == BG, "a zero scale fills with background only");
+    CHECK(dst[0] == BG && dst[15] == BG, "a zero scale leaves background only");
 
     pet_render_sprite_scaled(dst, 4, 4, src, 4, 4, &huge, BG);
-    CHECK(dst[0] == BG && dst[15] == BG, "an off-canvas offset paints nothing");
+    CHECK(dst[0] == BG && dst[15] == BG, "an off-canvas offset draws nothing");
 
     pet_render_sprite_scaled(dst, 4, 4, NULL, 4, 4, NULL, BG);
-    CHECK(dst[0] == BG, "a NULL source is refused rather than dereferenced");
+    CHECK(dst[0] == BG, "a NULL source is refused, not dereferenced");
 }
 
 static void test_frame_tables(void)
 {
     int a;
 
-    section("Every animation has a frame transform for every frame");
+    section("Every animation has a transform for every frame");
     for (a = 0; a < PET_ANIM_COUNT; a++) {
         const pet_anim_def_t *def = pet_anim_def((pet_anim_id_t)a);
         int f, complete = 1;
@@ -169,24 +160,23 @@ static void test_frame_tables(void)
         CHECK(complete, pet_anim_name((pet_anim_id_t)a));
     }
 
-    section("Out-of-range frames clamp instead of reading past the table");
+    section("Out of range frames clamp instead of reading past the table");
     CHECK(pet_frame_xform(PET_ANIM_IDLE, 200) == pet_frame_xform(PET_ANIM_IDLE, 3),
-          "an over-large frame index clamps to the last frame");
+          "a frame index that's too big clamps to the last frame");
     CHECK(pet_frame_xform((pet_anim_id_t)99, 0) == pet_frame_xform(PET_ANIM_IDLE, 0),
           "an unknown animation falls back to IDLE");
 }
 
 /*
- * This is the requirement stated in the brief: "An animation must visibly change
- * across time; displaying one static image with different text is not
- * sufficient." These checks assert that consecutive frames always differ, and
- * that the spread across an animation is large enough to actually be seen.
+ * The brief says an animation has to visibly change over time, and that one
+ * static image with different text isn't enough. So check that no two
+ * consecutive frames are the same, and that the movement is big enough to see.
  */
 static void test_animations_visibly_change(void)
 {
     int a;
 
-    section("Animations visibly change across time (project requirement)");
+    section("Animations visibly change over time");
     for (a = 0; a < PET_ANIM_COUNT; a++) {
         const pet_anim_def_t *def = pet_anim_def((pet_anim_id_t)a);
         int f, max_spread = 0;
@@ -214,16 +204,14 @@ static void test_animations_visibly_change(void)
         printf("         %-8s frames=%d  max spread=%d\n",
                pet_anim_name((pet_anim_id_t)a), def->frames, max_spread);
         CHECK(consecutive_differs, "no two consecutive frames are identical");
-        /* 8 in Q8 is about 3% of size, or 8 px of movement - clearly visible. */
-        CHECK(max_spread >= 8, "the animation spans a visible change");
+        /* 8 in Q8 is about 3% of the size, or 8 px of movement, so it's visible. */
+        CHECK(max_spread >= 8, "the animation moves enough to see");
     }
 }
 
-/* --------------------------------------------------------------------------- */
-
 int main(void)
 {
-    printf("pet_render host test suite\n");
+    printf("pet_render tests\n");
 
     test_identity();
     test_bottom_anchor();
