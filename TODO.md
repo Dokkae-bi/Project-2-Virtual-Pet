@@ -63,6 +63,9 @@ sensor". Still to do on it, once the headers are soldered:
 - [ ] three hard shakes → the pet jumps; non-stop shaking → at most one Play per 1.5 s
 - [ ] boot with it unplugged → the pet runs normally, `LD2` stays off, no stutter
 - [ ] unplug and replug it while running → `LD2` follows, shaking works again
+- [ ] wiggle the VCC wire while shaking, and press the board's RESET mid-shake →
+      within ~1 s `LD2` is back on and shaking works (tests the bus-clear in
+      `I2C1_Recover` and the sleep check)
 - [ ] shaking with the menu open, or with the pet dead/run away, does nothing
 - [ ] walking around or tapping the table does not trigger Play — if it does, raise
       `PET_SHAKE_JOLT_MG` in `pet_shake.h`; if real shakes are missed, lower it

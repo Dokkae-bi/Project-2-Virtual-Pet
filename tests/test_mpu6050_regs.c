@@ -49,12 +49,21 @@ static void test_decode(void)
     CHECK(a[2] == -32768, "0x8000 is the most negative reading");
 }
 
+static void test_asleep(void)
+{
+    section("Spotting a sensor that reset behind our back");
+    CHECK(mpu6050_is_asleep(0x40u), "the power-on value of PWR_MGMT_1 is asleep");
+    CHECK(!mpu6050_is_asleep(MPU6050_PWR_CLK_PLL_X), "the value init writes is awake");
+    CHECK(mpu6050_is_asleep(0x41u), "SLEEP set with another clock is still asleep");
+}
+
 int main(void)
 {
     printf("mpu6050_regs tests\n");
 
     test_who_am_i();
     test_decode();
+    test_asleep();
 
     printf("\n----------------------------------------\n");
     printf("%d passed, %d failed\n", g_pass, g_fail);

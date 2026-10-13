@@ -21,6 +21,7 @@
 #define MPU6050_REG_WHO_AM_I    0x75u
 
 #define MPU6050_PWR_CLK_PLL_X   0x01u   /* awake, clock from the X gyro PLL */
+#define MPU6050_PWR_SLEEP       0x40u   /* set at power-on: the chip is asleep */
 #define MPU6050_DLPF_44HZ       0x03u
 #define MPU6050_SMPLRT_100HZ    9u      /* 1 kHz / (1 + 9) with the DLPF on */
 #define MPU6050_ACCEL_FS_2G     0x00u
@@ -32,6 +33,13 @@
  * 0x00 and 0xFF are what a missing or shorted bus reads back, so they fail.
  */
 bool mpu6050_who_am_i_ok(uint8_t id);
+
+/*
+ * True if a PWR_MGMT_1 value has the SLEEP bit set. A sensor that lost power for
+ * a moment comes back asleep and reads all zeros while still ACKing, so this is
+ * the only way to tell it needs initialising again.
+ */
+bool mpu6050_is_asleep(uint8_t pwr_mgmt_1);
 
 /* Decode the 6 bytes read from ACCEL_XOUT into signed x, y, z counts. */
 void mpu6050_accel_from_bytes(const uint8_t raw[6], int16_t out[3]);

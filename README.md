@@ -5,7 +5,7 @@ Tamagotchi-style virtual pet running on a **NUCLEO-L496ZG-P** with an
 
 > **Status:** **the pet runs.** `main.c` starts it, the joystick drives the menu,
 > and the sprite, both meters and the menu are drawn on the panel. Shaking the
-> MPU-6050 (I2C) plays with the pet. 327 host checks pass with no board attached.
+> MPU-6050 (I2C) plays with the pet. 330 host checks pass with no board attached.
 > What's left is the analog input and the hardware verification — **see
 > [`TODO.md`](TODO.md)**.
 
@@ -155,7 +155,10 @@ How it works:
   refuses it.
 - **Missing or unplugged sensor:** the pet keeps running without it, `LD2` turns
   off, and the sensor is looked for again once a second, so plugging it back in
-  recovers without a reset. Every I2C call has a 5 ms timeout.
+  recovers without a reset. Every failure also frees the bus (nine SCL pulses and
+  a STOP) and restarts I2C1, because a wire glitch can otherwise leave it stuck
+  "busy" until the board is reset. Once a second it also checks the sensor hasn't
+  browned out and gone back to sleep, which would read as zeros without failing.
 - `WHO_AM_I` must read `0x68` (genuine) or `0x70`/`0x72` (clones commonly fitted
   to GY-521 boards with the same accelerometer registers).
 
@@ -213,7 +216,7 @@ VirtualPet/
 ├── Middlewares/                ST USB host library (compiled, NOT initialised)
 ├── USB_HOST/                   USB host application (unused — see PA9 warning)
 ├── sprites/                    generated RGB565 assets + preview PNGs
-├── tests/                      327 host checks, run on a PC with no board
+├── tests/                      330 host checks, run on a PC with no board
 ├── tools/
 │   └── png_to_rgb565.py        artwork → RGB565 converter
 └── docs/
@@ -335,8 +338,8 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 | `test_pet_hud` | 39 |
 | `test_pet_ctl` | 39 |
 | `test_pet_shake` | 16 |
-| `test_mpu6050_regs` | 8 |
-| **Total** | **327** |
+| `test_mpu6050_regs` | 11 |
+| **Total** | **330** |
 
 ---
 
@@ -417,7 +420,7 @@ history.
 (`MX_I2C1_Init`, `HAL_I2C_MspInit`), the MPU-6050 driver (`mpu6050`,
 `mpu6050_regs`), the shake detector (`pet_shake`), the non-blocking poll in
 `main.c` that turns a shake into Play with retry when the sensor is missing, and
-the 24 host checks in `test_pet_shake` and `test_mpu6050_regs`.
+the 27 host checks in `test_pet_shake` and `test_mpu6050_regs`.
 
 ---
 
