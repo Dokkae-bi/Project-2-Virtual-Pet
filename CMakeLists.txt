@@ -58,6 +58,14 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_shake.c
     ${CMAKE_SOURCE_DIR}/Core/Src/mpu6050_regs.c
     ${CMAKE_SOURCE_DIR}/Core/Src/mpu6050.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_pot.c
+
+    # ST HAL ADC driver. Unmodified copies from STM32Cube_FW_L4 V1.18.2 (HAL
+    # 1.13.6, the same version as the rest of Drivers/). CubeMX never copied
+    # them in because the .ioc has no ADC, so they are listed here rather than
+    # in cmake/stm32cubemx/, which CubeMX regenerates.
+    ${CMAKE_SOURCE_DIR}/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc.c
+    ${CMAKE_SOURCE_DIR}/Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_adc_ex.c
     # Generated RGB565 sprite assets (produced by tools/png_to_rgb565.py).
     ${CMAKE_SOURCE_DIR}/sprites/slime_content.c
     ${CMAKE_SOURCE_DIR}/sprites/slime_delighted.c

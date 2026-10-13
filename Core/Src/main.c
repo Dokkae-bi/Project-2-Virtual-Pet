@@ -42,6 +42,7 @@
 #include "pet_screen.h"
 #include "pet_shake.h"
 #include "mpu6050.h"
+#include "pet_pot.h"
 /* USER CODE END Includes */
 
 /* Private variables ---------------------------------------------------------*/
@@ -56,10 +57,18 @@ I2C_HandleTypeDef hi2c1;
 static pet_ctl_t g_pet;
 static pet_ui_t  g_ui;
 
-/* How much the pet gets fed. This is the value the analog input will set once it
-   is wired up - see TODO.md. pet_ui_set_portion() puts the same value in the
-   menu, so what the player sees is what the pet actually gets. */
-static const uint8_t g_portion = PET_FEED_PORTION_MIN;
+/* How much the pet gets fed, set by the potentiometer in Pot_Poll().
+   pet_ui_set_portion() puts the same value in the menu, so what the player sees
+   is what the pet actually gets. */
+static uint8_t g_portion = PET_FEED_PORTION_MIN;
+
+/* Potentiometer on PA3 (ADC1_IN8). Kept in a USER CODE block for the same
+   reason as hi2c1: the .ioc does not know about ADC1. */
+#define POT_SAMPLE_MS    20u     /* 50 Hz: faster than a hand turns a knob */
+#define POT_TIMEOUT_MS   2u      /* one conversion takes ~7 us */
+ADC_HandleTypeDef hadc1;
+static pet_pot_t  g_pot;
+static uint32_t   g_pot_next_ms = 0u;
 
 /* MPU-6050 shake sensor. LD2 shows whether it is answering. */
 #define SHAKE_SAMPLE_MS  10u     /* 100 Hz, matches the sensor's output rate */
@@ -81,6 +90,8 @@ static pet_input_t Input_Read(void);
 static bool Shake_Poll(uint32_t now);
 static void Shake_Offline(uint32_t now);
 static void I2C1_Recover(void);
+static void MX_ADC1_Init(void);
+static void Pot_Poll(uint32_t now);
 /* USER CODE END PFP */
 
 /* Joystick (B1) bit flags returned by Joystick_Read() */
@@ -290,6 +301,92 @@ static void MX_I2C1_Init(void)
     Error_Handler();
   }
 }
+
+/**
+  * @brief ADC1 Initialization Function - the feeding-portion potentiometer.
+  *        PA3 = ADC1_IN8, 12-bit, single software-triggered conversion.
+  *
+  * Clock: SYSCLK 56.8 MHz / 4 = 14.2 MHz. Sampling 92.5 cycles (6.5 us) is
+  * plenty for a 10 kOhm pot; a conversion is (92.5 + 12.5) / 14.2 MHz = 7.4 us.
+  * Calibrated once at start-up, as RM0351 requires before the first conversion.
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  hadc1.Instance                   = ADC1;
+  hadc1.Init.ClockPrescaler        = ADC_CLOCK_ASYNC_DIV4;
+  hadc1.Init.Resolution            = ADC_RESOLUTION_12B;
+  hadc1.Init.DataAlign             = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.ScanConvMode          = ADC_SCAN_DISABLE;
+  hadc1.Init.EOCSelection          = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.LowPowerAutoWait      = DISABLE;
+  hadc1.Init.ContinuousConvMode    = DISABLE;
+  hadc1.Init.NbrOfConversion       = 1;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv      = ADC_SOFTWARE_START;
+  hadc1.Init.ExternalTrigConvEdge  = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.Overrun               = ADC_OVR_DATA_OVERWRITTEN;
+  hadc1.Init.OversamplingMode      = DISABLE;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  sConfig.Channel      = ADC_CHANNEL_8;
+  sConfig.Rank         = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_92CYCLES_5;
+  sConfig.SingleDiff   = ADC_SINGLE_ENDED;
+  sConfig.OffsetNumber = ADC_OFFSET_NONE;
+  sConfig.Offset       = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief  Read the potentiometer when a reading is due and update the portion.
+  *
+  * The portion goes to both the menu (shown next to Feed) and the Feed action,
+  * so the two can't disagree. pet_pot smooths the reading and adds hysteresis,
+  * so the menu only redraws when the knob has really moved.
+  *
+  * A failed conversion keeps the last portion: Feed still works, it just can't
+  * be resized until the ADC answers again. A disconnected wiper leaves PA3
+  * floating, which reads as a random portion - check the wiring if the number
+  * wanders on its own.
+  */
+static void Pot_Poll(uint32_t now)
+{
+  if ((int32_t)(now - g_pot_next_ms) < 0)
+  {
+    return;
+  }
+  g_pot_next_ms = now + POT_SAMPLE_MS;
+
+  if (HAL_ADC_Start(&hadc1) != HAL_OK)
+  {
+    return;
+  }
+  if (HAL_ADC_PollForConversion(&hadc1, POT_TIMEOUT_MS) == HAL_OK)
+  {
+    const uint8_t portion = pet_pot_update(&g_pot, (uint16_t)HAL_ADC_GetValue(&hadc1));
+    if (portion != g_portion)
+    {
+      g_portion = portion;
+      pet_ui_set_portion(&g_ui, portion);
+    }
+  }
+  (void)HAL_ADC_Stop(&hadc1);
+}
 /* USER CODE END 0 */
 
 /**
@@ -313,6 +410,8 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   MX_I2C1_Init();
+  MX_ADC1_Init();
+  pet_pot_init(&g_pot);
 
   pet_ctl_init(&g_pet, HAL_GetTick());
   pet_ui_init(&g_ui);
@@ -332,6 +431,10 @@ int main(void)
     const uint32_t now = HAL_GetTick();
 
     pet_ctl_tick(&g_pet, now);
+
+    /* Before the input is handled, so a Feed this pass uses the knob's
+       current position. */
+    Pot_Poll(now);
 
     const pet_ui_result_t result = pet_ui_handle(&g_ui, Input_Read(), &g_pet.pet);
 
