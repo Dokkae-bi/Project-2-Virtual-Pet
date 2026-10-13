@@ -117,7 +117,11 @@ def main():
                          "squash/stretch animation")
     ap.add_argument("--defringe", type=int, default=1,
                     help="pixels to erode from the sprite edge, removing the "
-                         "key-coloured blend ring that flood fill cannot remove")
+                         "key-coloured blend ring that flood fill cannot remove. "
+                         "Do not raise this blindly: eroding 2px eats through a "
+                         "thin dark outline and leaves the body colour touching "
+                         "the background, which measures worse than the fringe it "
+                         "removed. 1 is the right trade for this art.")
     ap.add_argument("--out-dir", default=".")
     ap.add_argument("--emit-header", action="store_true")
     args = ap.parse_args()
