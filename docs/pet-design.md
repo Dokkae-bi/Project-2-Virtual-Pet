@@ -1,7 +1,8 @@
 # Virtual pet design — the slime
 
-> **Status:** design locked, artwork in progress, model implemented and tested.
-> Console name pending (referred to below as `Bloop`, easily changed).
+> **Status:** design locked; the logic, artwork and tests are all done. Only the
+> hardware integration is outstanding — see [`../TODO.md`](../TODO.md).
+> Console name is still a working name (`Bloop`, easily changed).
 
 ---
 
@@ -36,10 +37,10 @@ Six visual states, mapped one-to-one onto the model states in `pet_core.h`.
 |---|---|---|---|---|---|
 | `PET_MOOD_DELIGHTED` | happiness ≥ 75 | bright saturated teal | stretched taller | happy upward-arc eyes, open smile | ✅ have |
 | `PET_MOOD_CONTENT` | default | base teal | neutral rounded dome | calm open eyes, small smile | ✅ have |
-| `PET_MOOD_HUNGRY` | hunger ≥ 70 (happiness still OK) | pale, slightly washed out | gentle sag | flat wobbly mouth, eyes a little smaller | ❌ **needed** |
+| `PET_MOOD_HUNGRY` | hunger ≥ 70 (happiness still OK) | pale, slightly washed out | gentle sag | flat wobbly mouth, eyes a little smaller | ✅ have |
 | `PET_MOOD_MISERABLE` | happiness ≤ 25 | dull grey-teal | flattened, sagging wide | half-closed downcast eyes, downturned mouth | ✅ have |
-| `PET_DEAD` | hunger reaches 100 | drained grey | collapsed to a flat puddle | eyes closed, no mouth | ❌ **needed** |
-| `PET_RUNAWAY` | happiness reaches 0 | fading, low opacity look | sliding off the edge of the stage | back turned / gone | ❌ **needed** |
+| `PET_DEAD` | hunger reaches 100 | drained grey | collapsed to a flat puddle | eyes closed, no mouth | ✅ have |
+| `PET_RUNAWAY` | happiness reaches 0 | fading, low opacity look | sliding off the edge of the stage | back turned / gone | ✅ have |
 
 `PET_MOOD_HUNGRY` is deliberately **distinct from** `PET_MOOD_MISERABLE`: a pet can
 be well-loved but starving, and the player must be able to tell those apart.
@@ -48,14 +49,22 @@ be well-loved but starving, and the player must be able to tell those apart.
 
 | Action | Physical input | Model effect | Animation | Artwork |
 |---|---|---|---|---|
-| **FEED** *(required)* | **Potentiometer → ADC** selects portion 1–5 | hunger −12×portion, happiness +4 | berry drops in and is absorbed, with a ripple | 1 of ~5 frames |
-| **PLAY** | **MPU-6050 accelerometer → I2C**, shake or tilt | happiness +22, hunger +9 | excited jiggle and bounce | ❌ 5 frames |
-| **CLEAN** | **Push-button → GPIO** | happiness +14 | sparkle wash, slime brightens | ❌ 5 frames |
-| Menu navigation | GFX01M2 joystick | select / activate | — | code only |
+| **FEED** *(required)* | menu item; **Potentiometer → ADC** selects portion 1–5 | hunger −12×portion, happiness +4 | squashes down and spreads as the berry goes in | `slime_eating` + scaling |
+| **PLAY** | menu item | happiness +22, hunger +9 | jump: stretches upward while rising | mood sprite + scaling |
+| **CLEAN** | menu item | happiness +14 | wobble either side of rest | mood sprite + scaling |
+| Menu navigation | GFX01M2 joystick | select / activate / restart | — | code only |
 | Mood voice | **PWM buzzer** | tone per mood, chirp per action | — | code only |
 
 The potentiometer gives the exact chain the brief asks for: **raw ADC value
 (0–4095) → interpreted value (portion 1–5) → visible effect on the pet**.
+
+Only the three action animations need `pet_render.c` scaling; Feed additionally
+uses one of the seven drawn sprites. No animation frames are stored as artwork,
+which is what keeps the flash cost at 56 KB instead of 221 KB — see §8.
+
+**Not yet implemented:** triggering Play directly from the accelerometer (shake or
+tilt) instead of via the menu, and the buzzer. Both are optional over the brief's
+requirements, and neither is wired up.
 
 ### Peripherals covered
 
@@ -140,17 +149,29 @@ actions, plus distinct death and runaway presentations.
 | Runaway | 4 | slide off the stage, fading |
 | Restart | 3 | droplet re-forming into the slime |
 
-Frame budget at 64×64 (8,192 bytes per frame): 27 frames ≈ **221 KB**, about
-**21% of the 1 MB flash**, leaving ~790 KB spare.
+Frame budget at 64×64 (8,192 bytes per frame): the 27 frames across 7 animations
+*would* come to about **221 KB** if every frame were stored separately. They are
+not. `pet_render.c` builds each frame by scaling one sprite per state, so the real
+cost is **7 sprites × 8,192 = 56 KB**, roughly **5% of the 1 MB flash**. Even
+allowing the ~120 KB that code and libraries are estimated to take, about 850 KB
+of flash is left unused.
 
 ## 9. Implementation status
 
 | Component | Status |
 |---|---|
-| Pet behaviour model (`Core/Src/pet_core.c`) | ✅ implemented, 46 host checks passing |
-| Animation sequencer | ❌ to do |
-| Menu / screen state machine | ❌ to do |
-| State → animation mapping | ❌ to do |
-| Display driver sprite blit | ❌ to do (`ILI9341_DrawBitmap`) |
-| PNG → RGB565 converter | ❌ to do |
+| Pet behaviour model (`Core/Src/pet_core.c`) | ✅ implemented, 46 host checks |
+| Animation sequencer (`Core/Src/pet_anim.c`) | ✅ implemented, 54 host checks |
+| State → animation mapping (`pet_anim_select`) | ✅ implemented |
+| Sprite scaler / frame builder (`Core/Src/pet_render.c`) | ✅ implemented, 38 host checks |
+| Sprite selection (`Core/Src/pet_view.c`) | ✅ implemented, 27 host checks |
+| Menu / screen state machine (`Core/Src/pet_ui.c`) | ✅ implemented, 60 host checks |
+| Display driver sprite blit (`ILI9341_DrawBitmap`) | ✅ implemented |
+| PNG → RGB565 converter (`tools/png_to_rgb565.py`) | ✅ implemented |
+| Artwork: all 7 states drawn and converted | ✅ done |
+| **`main.c` integration** | ❌ **not done — nothing calls the modules yet** |
 | Analog / I2C input drivers | 🔌 needs hardware |
+| Status meters and menu drawn on screen | ❌ to do |
+
+**225 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for the
+outstanding work.
