@@ -46,6 +46,10 @@
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
+/* I2C1 for the MPU-6050 shake sensor. Kept in a USER CODE block because the
+   .ioc does not know about I2C1, so CubeMX would otherwise delete it. */
+I2C_HandleTypeDef hi2c1;
+
 /* Pet state. static because the stack is only 2 KB. */
 static pet_ctl_t g_pet;
 static pet_ui_t  g_ui;
@@ -61,6 +65,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
+static void MX_I2C1_Init(void);
 static pet_input_t Input_Read(void);
 /* USER CODE END PFP */
 
@@ -116,6 +121,39 @@ static pet_input_t Input_Read(void)
 
   return event;
 }
+
+/**
+  * @brief I2C1 Initialization Function - the MPU-6050 shake sensor.
+  *        SCL = PB8, SDA = PB9, 100 kHz standard mode.
+  *
+  * TIMING 0x60420F13 is the RM0351 100 kHz table entry (SCLL 0x13, SCLH 0x0F,
+  * SDADEL 2, SCLDEL 4) with PRESC raised from 3 to 6. That keeps the prescaled
+  * clock near 4 MHz from PCLK1 = 28.4 MHz (28.4 / 7 = 4.06 MHz).
+  *
+  * HAL_I2C_Init only fails on bad parameters, never because the sensor is
+  * missing, so unplugging the GY-521 can't land in Error_Handler from here.
+  * @retval None
+  */
+static void MX_I2C1_Init(void)
+{
+  hi2c1.Instance              = I2C1;
+  hi2c1.Init.Timing           = 0x60420F13;
+  hi2c1.Init.OwnAddress1      = 0;
+  hi2c1.Init.AddressingMode   = I2C_ADDRESSINGMODE_7BIT;
+  hi2c1.Init.DualAddressMode  = I2C_DUALADDRESS_DISABLE;
+  hi2c1.Init.OwnAddress2      = 0;
+  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c1.Init.GeneralCallMode  = I2C_GENERALCALL_DISABLE;
+  hi2c1.Init.NoStretchMode    = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
 /* USER CODE END 0 */
 
 /**
@@ -138,6 +176,8 @@ int main(void)
   ILI9341_Init(&hspi1);
 
   /* USER CODE BEGIN 2 */
+  MX_I2C1_Init();
+
   pet_ctl_init(&g_pet, HAL_GetTick());
   pet_ui_init(&g_ui);
   pet_ui_set_portion(&g_ui, g_portion);
@@ -204,6 +244,7 @@ static void MX_SPI1_Init(void)
     Error_Handler();
   }
 }
+
 
 /**
   * @brief System Clock Configuration
