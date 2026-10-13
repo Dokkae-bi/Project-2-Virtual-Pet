@@ -51,11 +51,21 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_core.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_anim.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_render.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_view.c
+    # Generated RGB565 sprite assets (produced by tools/png_to_rgb565.py).
+    ${CMAKE_SOURCE_DIR}/sprites/slime_content.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_delighted.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_hungry.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_miserable.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_eating.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_dead.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_runaway.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined include paths
+    # Generated RGB565 sprite assets, so pet_view.c can include their headers.
+    ${CMAKE_SOURCE_DIR}/sprites
 )
 
 # Add project symbols (macros)
