@@ -1,12 +1,10 @@
 /**
- ******************************************************************************
  * @file    pet_ui.c
  * @brief   Screen and menu state machine. See pet_ui.h.
- ******************************************************************************
  */
 #include "pet_ui.h"
 
-#include <stddef.h>   /* NULL */
+#include <stddef.h>
 
 /* The three required interactions, in menu order. */
 static const struct {
@@ -19,10 +17,6 @@ static const struct {
 };
 
 #define UI_ITEM_COUNT ((uint8_t)(sizeof(UI_ITEMS) / sizeof(UI_ITEMS[0])))
-
-/* ---------------------------------------------------------------------------
- * Accessors
- * ------------------------------------------------------------------------- */
 
 uint8_t pet_ui_item_count(void)
 {
@@ -84,10 +78,6 @@ const char *pet_ui_input_name(pet_input_t input)
     }
 }
 
-/* ---------------------------------------------------------------------------
- * State machine
- * ------------------------------------------------------------------------- */
-
 void pet_ui_init(pet_ui_t *ui)
 {
     if (ui == NULL) {
@@ -106,15 +96,13 @@ pet_ui_result_t pet_ui_handle(pet_ui_t *ui, pet_input_t input, const pet_t *pet)
         return result;
     }
 
-    /* A NULL model is treated as interactive: the state machine stays usable in
-     * isolation, and only an explicit terminal state locks it out. */
+    /* No model passed in means treat it as alive, so the state machine stays
+       usable on its own. */
     const bool interactive = (pet == NULL) ? true : pet_is_interactive(pet);
 
-    /*
-     * If the pet reaches a terminal state while the menu is open, close the menu
-     * and consume this event doing it. Leaving the menu up would hide the very
-     * screen that announces the ending.
-     */
+    /* If the pet finishes while the menu is open, close the menu and use this
+       event to do it. Otherwise the death or runaway screen would happen behind
+       an open menu and never be seen. */
     if (!interactive && (ui->screen != PET_SCREEN_PET)) {
         ui->screen  = PET_SCREEN_PET;
         result.redraw = true;
@@ -130,7 +118,7 @@ pet_ui_result_t pet_ui_handle(pet_ui_t *ui, pet_input_t input, const pet_t *pet)
                 ui->screen = PET_SCREEN_MENU;
                 ui->cursor = 0u;
             } else {
-                /* The only meaningful action left. */
+                /* Restarting is the only thing left to do. */
                 result.restart = true;
             }
         }
@@ -139,7 +127,7 @@ pet_ui_result_t pet_ui_handle(pet_ui_t *ui, pet_input_t input, const pet_t *pet)
     case PET_SCREEN_MENU:
         switch (input) {
         case PET_INPUT_UP:
-            /* Wrap, so the menu cannot get stuck at either end. */
+            /* Wrap round so the menu can't get stuck at either end. */
             ui->cursor = (uint8_t)((ui->cursor + UI_ITEM_COUNT - 1u) % UI_ITEM_COUNT);
             result.redraw = true;
             break;
@@ -156,19 +144,19 @@ pet_ui_result_t pet_ui_handle(pet_ui_t *ui, pet_input_t input, const pet_t *pet)
             break;
 
         case PET_INPUT_BACK:
-            /* Cancel: go back without acting. */
+            /* Cancel and go back without doing anything. */
             result.redraw = true;
             ui->screen = PET_SCREEN_PET;
             break;
 
         default:
-            /* LEFT/RIGHT are reserved and deliberately do nothing here. */
+            /* LEFT and RIGHT are reserved for later. */
             break;
         }
         break;
 
     default:
-        /* Unreachable unless the state was corrupted; recover rather than loop. */
+        /* Shouldn't happen; recover instead of looping. */
         ui->screen = PET_SCREEN_PET;
         result.redraw = true;
         break;

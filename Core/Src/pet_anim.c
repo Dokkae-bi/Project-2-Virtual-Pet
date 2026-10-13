@@ -1,30 +1,28 @@
 /**
- ******************************************************************************
  * @file    pet_anim.c
- * @brief   Non-blocking animation sequencer. See pet_anim.h.
+ * @brief   Animation sequencer. See pet_anim.h.
  *
- * All timing is derived from the millisecond timestamp the caller passes in, so
- * playback is independent of call frequency and never blocks the main loop.
- ******************************************************************************
+ * All timing comes from the millisecond timestamp the caller passes in, so
+ * playback doesn't depend on call frequency and never blocks the main loop.
  */
 #include "pet_anim.h"
 
-#include <stddef.h>   /* NULL */
+#include <stddef.h>
 
 /*
- * Frame periods are chosen against the measured sprite transfer time: a 64x64
- * sprite takes about 37 ms to push over SPI, so a 100 ms frame period leaves
- * roughly two thirds of each frame for input handling and the rest of the UI.
+ * Frame periods are picked against the measured sprite transfer time: a 64x64
+ * sprite takes about 37 ms to send over SPI, so a 100 ms frame still leaves
+ * roughly two thirds of the time for input handling and the rest of the UI.
  */
 static const pet_anim_def_t g_anims[PET_ANIM_COUNT] = {
     /* frames, frame_ms, loop */
-    { 4, 250, true  },   /* IDLE     - slow breathing, loops                  */
-    { 5, 120, false },   /* FEED     - berry enters and is absorbed           */
-    { 5, 100, false },   /* PLAY     - excited jiggle                         */
-    { 5, 120, false },   /* CLEAN    - sparkle wash                           */
-    { 4, 300, true  },   /* DEATH    - collapse, then stays collapsed         */
-    { 4, 300, true  },   /* RUNAWAY  - slides away and keeps drifting         */
-    { 3, 180, false },   /* RESTART  - droplet re-forms into the slime        */
+    { 4, 250, true  },   /* IDLE    - slow breathing */
+    { 5, 120, false },   /* FEED    - berry goes in and is absorbed */
+    { 5, 100, false },   /* PLAY    - excited jiggle */
+    { 5, 120, false },   /* CLEAN   - sparkle wash */
+    { 4, 300, true  },   /* DEATH   - collapses, then stays collapsed */
+    { 4, 300, true  },   /* RUNAWAY - slides away and keeps drifting */
+    { 3, 180, false },   /* RESTART - droplet re-forms into the slime */
 };
 
 const pet_anim_def_t *pet_anim_def(pet_anim_id_t id)
@@ -67,8 +65,8 @@ void pet_anim_update(pet_anim_t *anim, uint32_t now_ms)
 
     const pet_anim_def_t *def = pet_anim_def(anim->id);
 
-    /* Subtracting two uint32_t timestamps stays correct across the 32-bit
-     * millisecond counter wrapping, exactly as pet_tick() does. */
+    /* Same uint32_t subtraction trick as pet_tick(), so this survives the
+       millisecond counter wrapping. */
     const uint32_t dt = now_ms - anim->last_update_ms;
     anim->last_update_ms = now_ms;
 
@@ -76,8 +74,8 @@ void pet_anim_update(pet_anim_t *anim, uint32_t now_ms)
 
     anim->elapsed_ms += dt;
 
-    /* A while loop, not an if: a long gap (a paused debugger, a slow full-screen
-     * redraw) must consume the right number of frames rather than lose time. */
+    /* A while loop, not an if: a long gap (a paused debugger, a slow redraw)
+       has to catch up the right number of frames instead of losing the time. */
     while (anim->elapsed_ms >= def->frame_ms) {
         anim->elapsed_ms -= def->frame_ms;
 
@@ -117,7 +115,7 @@ pet_anim_id_t pet_anim_for_action(pet_action_t action)
     }
 }
 
-/** true for the animations that play once and then hand back to idle. */
+/* true for the animations that play once and then hand back to idle. */
 static bool is_one_shot(pet_anim_id_t id)
 {
     return (id == PET_ANIM_FEED) || (id == PET_ANIM_PLAY) ||
@@ -128,16 +126,14 @@ pet_anim_id_t pet_anim_select(const pet_t *pet, const pet_anim_t *current)
 {
     if (pet == NULL) { return PET_ANIM_IDLE; }
 
-    /* A finished life outranks any animation that happens to be in flight. */
+    /* A finished life outranks any animation that happens to be running. */
     if (pet->state == PET_DEAD)    { return PET_ANIM_DEATH; }
     if (pet->state == PET_RUNAWAY) { return PET_ANIM_RUNAWAY; }
 
-    if ((current != NULL) && !current->finished &&
-        is_one_shot(current->id)) {
+    if ((current != NULL) && !current->finished && is_one_shot(current->id)) {
         return current->id;
     }
 
-    /* Idle. The mood, and therefore which idle sprites and palette are used, is
-     * chosen separately by pet_mood(). */
+    /* Idle. pet_mood() decides which idle sprites are used. */
     return PET_ANIM_IDLE;
 }

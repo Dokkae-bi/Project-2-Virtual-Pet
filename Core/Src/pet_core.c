@@ -1,23 +1,16 @@
 /**
- ******************************************************************************
  * @file    pet_core.c
- * @brief   Platform-independent virtual pet model. See pet_core.h for the
- *          documented limits, rates and action effects.
+ * @brief   Virtual pet model. See pet_core.h for the limits, rates and effects.
  *
- * No HAL calls, no hardware access, no blocking delays. All evolution is driven
- * by the millisecond timestamp the caller passes in, so this file compiles and
- * runs unchanged on both the STM32 and a host PC.
- ******************************************************************************
+ * No HAL calls, no hardware access, no blocking delays. Everything is driven by
+ * the millisecond timestamp the caller passes in, so this file compiles and runs
+ * the same on the STM32 and on a PC.
  */
 #include "pet_core.h"
 
-#include <stddef.h>   /* NULL */
+#include <stddef.h>
 
-/* ---------------------------------------------------------------------------
- * Internal helpers
- * ------------------------------------------------------------------------- */
-
-/** Clamp a value into the documented [PET_STAT_MIN, PET_STAT_MAX] range. */
+/* Clamp into the documented [PET_STAT_MIN, PET_STAT_MAX] range. */
 static int16_t clamp_stat(int32_t value)
 {
     if (value < PET_STAT_MIN) { return (int16_t)PET_STAT_MIN; }
@@ -25,26 +18,19 @@ static int16_t clamp_stat(int32_t value)
     return (int16_t)value;
 }
 
-/**
- * @brief Apply a signed delta to a statistic, storing the clamped result.
- *
- * The arithmetic is done in int32_t first so there is no intermediate overflow
- * and no reliance on int16_t wrap-around.
- */
+/* Add a signed delta to a statistic and store the clamped result. Done in
+   int32_t first so nothing overflows or relies on int16_t wrapping. */
 static void apply_delta(int16_t *stat, int32_t delta)
 {
     *stat = clamp_stat((int32_t)(*stat) + delta);
 }
 
-/**
- * @brief Advance one statistic by dt milliseconds of elapsed time.
+/*
+ * Move one statistic on by dt milliseconds.
  *
- * @param accum           carries leftover time between calls so that partial
- *                        periods are never lost
- * @param units_per_period signed change applied each time a period completes
- *
- * Tracking elapsed time this way means the pet's evolution depends only on how
- * much wall-clock time has passed, never on how often pet_tick() is called.
+ * accum carries leftover time between calls so partial periods aren't lost.
+ * Because of that, the pet's evolution depends only on how much time has passed,
+ * never on how often pet_tick() is called.
  */
 static void advance_by_time(int16_t *stat, uint32_t *accum, uint32_t dt,
                             uint32_t ms_per_unit, int32_t units_per_period)
@@ -57,15 +43,11 @@ static void advance_by_time(int16_t *stat, uint32_t *accum, uint32_t dt,
     }
 }
 
-/* ---------------------------------------------------------------------------
- * Lifecycle
- * ------------------------------------------------------------------------- */
-
 void pet_init(pet_t *pet, uint32_t now_ms)
 {
     if (pet == NULL) { return; }
 
-    /* Zero the whole structure first so that no field is left undefined. */
+    /* Clear the whole struct first so no field is left undefined. */
     *pet = (pet_t){0};
 
     pet->hunger       = PET_INIT_HUNGER;
@@ -74,7 +56,7 @@ void pet_init(pet_t *pet, uint32_t now_ms)
     pet->last_action  = PET_ACTION_NONE;
     pet->last_tick_ms = now_ms;
 
-    /* age_ms, both accumulators and every action counter start at zero. */
+    /* age_ms, the accumulators and the action counters all start at zero. */
 }
 
 void pet_restart(pet_t *pet, uint32_t now_ms)
@@ -87,22 +69,17 @@ bool pet_is_interactive(const pet_t *pet)
     return (pet != NULL) && (pet->state == PET_ALIVE);
 }
 
-/* ---------------------------------------------------------------------------
- * Time evolution
- * ------------------------------------------------------------------------- */
-
 void pet_tick(pet_t *pet, uint32_t now_ms)
 {
     if (pet == NULL) { return; }
 
-    /* Subtracting two uint32_t timestamps stays correct when the 32-bit
-     * millisecond counter wraps (roughly every 49.7 days), which is why the
-     * elapsed time is computed this way rather than comparing absolute values. */
+    /* Subtracting two uint32_t timestamps still works when the millisecond
+       counter wraps (about every 49.7 days), which is why elapsed time is
+       worked out this way rather than comparing the values directly. */
     const uint32_t dt = now_ms - pet->last_tick_ms;
     pet->last_tick_ms = now_ms;
 
-    /* A dead pet, or one that has run away, is frozen: its statistics stop
-     * changing until pet_restart() is called. */
+    /* A dead pet, or one that has run away, is frozen until pet_restart(). */
     if (!pet_is_interactive(pet)) { return; }
 
     pet->age_ms += dt;
@@ -112,9 +89,9 @@ void pet_tick(pet_t *pet, uint32_t now_ms)
     advance_by_time(&pet->happiness, &pet->happiness_accum_ms, dt,
                     PET_HAPPINESS_MS_PER_UNIT, -1);
 
-    /* Terminal conditions are evaluated after the statistics have been updated.
-     * Hunger is tested first, so a pet that reaches both limits on the same tick
-     * is reported as having starved. */
+    /* Check the terminal conditions after updating the statistics. Hunger is
+       tested first, so a pet that hits both limits on the same tick counts as
+       having starved. */
     if (pet->hunger >= PET_STAT_MAX) {
         pet->state = PET_DEAD;
     } else if (pet->happiness <= PET_STAT_MIN) {
@@ -122,16 +99,8 @@ void pet_tick(pet_t *pet, uint32_t now_ms)
     }
 }
 
-/* ---------------------------------------------------------------------------
- * Interactions
- * ------------------------------------------------------------------------- */
-
-/**
- * @brief Shared bookkeeping for every accepted action.
- *
- * Returns false, having changed nothing, when the pet cannot be interacted
- * with. That refusal is what makes the restart procedure necessary.
- */
+/* Bookkeeping shared by every accepted action. Returns false, having changed
+   nothing, if the pet can't be interacted with. */
 static bool begin_action(pet_t *pet, pet_action_t action, uint32_t now_ms)
 {
     if (!pet_is_interactive(pet)) { return false; }
@@ -149,8 +118,8 @@ bool pet_feed(pet_t *pet, uint8_t portion, uint32_t now_ms)
 {
     if (!begin_action(pet, PET_ACTION_FEED, now_ms)) { return false; }
 
-    /* The ADC-derived portion is clamped into the documented range rather than
-     * rejected, so a noisy or out-of-range reading degrades gracefully. */
+    /* Clamp the ADC portion rather than rejecting it, so a noisy or out of range
+       reading just gives a smaller or bigger meal. */
     if (portion < PET_FEED_PORTION_MIN) { portion = PET_FEED_PORTION_MIN; }
     if (portion > PET_FEED_PORTION_MAX) { portion = PET_FEED_PORTION_MAX; }
 
@@ -176,16 +145,12 @@ bool pet_clean(pet_t *pet, uint32_t now_ms)
     return true;
 }
 
-/* ---------------------------------------------------------------------------
- * Presentation helpers
- * ------------------------------------------------------------------------- */
-
 pet_mood_t pet_mood(const pet_t *pet)
 {
     if (pet == NULL) { return PET_MOOD_MISERABLE; }
 
-    /* A pet that is no longer alive is shown in its worst mood, which is what
-     * drives the death and runaway animations. */
+    /* A pet that isn't alive is shown in its worst mood, which is what drives
+       the death and runaway animations. */
     if (!pet_is_interactive(pet)) { return PET_MOOD_MISERABLE; }
 
     if (pet->happiness <= PET_MOOD_MISERABLE_AT_HAPPINESS) { return PET_MOOD_MISERABLE; }

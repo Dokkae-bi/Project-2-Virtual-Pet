@@ -1,14 +1,12 @@
 /**
- ******************************************************************************
  * @file    pet_view.c
- * @brief   Sprite selection and frame composition. See pet_view.h.
- ******************************************************************************
+ * @brief   Sprite selection and frame building. See pet_view.h.
  */
 #include "pet_view.h"
 
-#include <stddef.h>   /* NULL */
+#include <stddef.h>
 
-/* Generated RGB565 assets (see tools/png_to_rgb565.py). */
+/* Generated RGB565 sprites, see tools/png_to_rgb565.py. */
 #include "slime_content.h"
 #include "slime_delighted.h"
 #include "slime_hungry.h"
@@ -16,10 +14,6 @@
 #include "slime_eating.h"
 #include "slime_dead.h"
 #include "slime_runaway.h"
-
-/* ---------------------------------------------------------------------------
- * Artwork selection
- * ------------------------------------------------------------------------- */
 
 const uint16_t *pet_view_sprite_for_mood(pet_mood_t mood)
 {
@@ -35,9 +29,8 @@ const uint16_t *pet_view_sprite_for_mood(pet_mood_t mood)
 const uint16_t *pet_view_sprite_for_anim(pet_anim_id_t anim)
 {
     switch (anim) {
-        /* Only the states with their own drawn artwork appear here. PLAY, CLEAN
-         * and RESTART are the mood sprite put through a transform, which is why
-         * they need no separate drawings. */
+        /* Only the states with their own artwork. PLAY, CLEAN and RESTART are
+           the mood sprite scaled, so they need no extra drawings. */
         case PET_ANIM_FEED:    return slime_eating;
         case PET_ANIM_DEATH:   return slime_dead;
         case PET_ANIM_RUNAWAY: return slime_runaway;
@@ -53,6 +46,8 @@ const uint16_t *pet_view_sprite(const pet_t *pet, const pet_anim_t *anim)
 
     const pet_anim_id_t showing = pet_anim_select(pet, anim);
 
+    /* If this animation has its own artwork use it, otherwise fall back to the
+       sprite for the current mood. */
     const uint16_t *specific = pet_view_sprite_for_anim(showing);
     if (specific != NULL) {
         return specific;
@@ -65,10 +60,6 @@ uint8_t pet_view_frame(const pet_anim_t *anim)
 {
     return (anim == NULL) ? 0u : pet_anim_frame(anim);
 }
-
-/* ---------------------------------------------------------------------------
- * Frame composition
- * ------------------------------------------------------------------------- */
 
 void pet_view_compose_stage(uint16_t *fb, uint16_t fb_w, uint16_t fb_h,
                             const pet_t *pet, const pet_anim_t *anim)
