@@ -35,18 +35,23 @@
 #include "ili9341.h"
 #include "gfx01m2_conf.h"
 
+/* Pet modules. Layering is described in README.md. */
+#include "pet_ctl.h"
+#include "pet_ui.h"
+#include "pet_screen.h"
+
 /* Private variables ---------------------------------------------------------*/
 SPI_HandleTypeDef hspi1;
+
+/* Pet state. static because the stack is only 2 KB. */
+static pet_ctl_t g_pet;
+static pet_ui_t  g_ui;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
-
-static void Demo_ColorBars(void);
-static void Demo_Shapes(void);
-static void Demo_Text(void);
-static void Demo_Joystick(void);
+static pet_input_t Input_Read(void);
 
 /* Joystick (B1) bit flags returned by Joystick_Read() */
 #define JOY_LEFT_MASK   (1U << 0)
@@ -70,6 +75,37 @@ static uint8_t Joystick_Read(void)
 }
 
 /**
+  * @brief  Turn the joystick into one logical event for pet_ui.
+  *
+  * Reports a press only on the transition from released to held. This loop runs
+  * far faster than anyone can tap, so returning the held state every pass would
+  * act on a single press hundreds of times.
+  *
+  * LEFT and RIGHT are mapped for completeness; pet_ui reserves them and does
+  * nothing with them yet.
+  *
+  * @retval PET_INPUT_NONE when nothing new was pressed.
+  */
+static pet_input_t Input_Read(void)
+{
+  static uint8_t previous = 0U;
+
+  const uint8_t now     = Joystick_Read();
+  const uint8_t pressed = (uint8_t)(now & (uint8_t)(~previous));
+  pet_input_t   event   = PET_INPUT_NONE;
+
+  previous = now;
+
+  if      ((pressed & JOY_UP_MASK)     != 0U) { event = PET_INPUT_UP;     }
+  else if ((pressed & JOY_DOWN_MASK)   != 0U) { event = PET_INPUT_DOWN;   }
+  else if ((pressed & JOY_LEFT_MASK)   != 0U) { event = PET_INPUT_LEFT;   }
+  else if ((pressed & JOY_RIGHT_MASK)  != 0U) { event = PET_INPUT_RIGHT;  }
+  else if ((pressed & JOY_CENTER_MASK) != 0U) { event = PET_INPUT_SELECT; }
+
+  return event;
+}
+
+/**
   * @brief  The application entry point.
   * @retval int
   */
@@ -85,109 +121,40 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI1_Init();
 
-  /* Initialize the LCD and show a splash screen */
+  /* Initialize the LCD, then start the pet and draw the first frame */
   ILI9341_Init(&hspi1);
-  ILI9341_DrawString(18, 12, "GFX01M2 LCD DEMO", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(30, 40, "NUCLEO-L496ZG-P", ILI9341_COLOR_CYAN, ILI9341_COLOR_BLACK, 1);
-  HAL_Delay(2000);
 
-  /* Infinite loop: cycle through the demo pages */
+  pet_ctl_init(&g_pet, HAL_GetTick());
+  pet_ui_init(&g_ui);
+  pet_screen_init(&g_pet.pet, &g_pet.anim, &g_ui);
+
+  /*
+   * Main loop. Deliberately no HAL_Delay in here: every part of the pet is
+   * driven by elapsed time, so blocking would freeze its clock and the
+   * animation. Nothing is redrawn unless it actually changed, so spinning
+   * freely costs nothing on the SPI bus.
+   *
+   * The portion fed to the pet comes from the analog input once that is wired
+   * up; see TODO.md. Until then it uses the smallest meal.
+   */
   while (1)
   {
-    Demo_ColorBars();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
+    const uint32_t now = HAL_GetTick();
 
-    Demo_Shapes();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
+    pet_ctl_tick(&g_pet, now);
 
-    Demo_Text();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-    HAL_Delay(1500);
+    const pet_ui_result_t result = pet_ui_handle(&g_ui, Input_Read(), &g_pet.pet);
 
-    Demo_Joystick();
-    HAL_GPIO_TogglePin(LD2_GPIO_Port, LD2_Pin);
-  }
-}
+    if (result.restart)
+    {
+      pet_ctl_restart(&g_pet, now);
+    }
+    else if (result.action != PET_ACTION_NONE)
+    {
+      (void)pet_ctl_action(&g_pet, result.action, PET_FEED_PORTION_MIN, now);
+    }
 
-/**
-  * @brief  Fills the screen with a set of vertical color bars.
-  */
-static void Demo_ColorBars(void)
-{
-  static const uint16_t colors[] =
-  {
-    ILI9341_COLOR_WHITE, ILI9341_COLOR_YELLOW, ILI9341_COLOR_CYAN, ILI9341_COLOR_GREEN,
-    ILI9341_COLOR_MAGENTA, ILI9341_COLOR_RED, ILI9341_COLOR_BLUE, ILI9341_COLOR_ORANGE
-  };
-  const uint16_t bar_count = sizeof(colors) / sizeof(colors[0]);
-  const uint16_t bar_width = ILI9341_WIDTH / bar_count;
-  uint16_t i;
-
-  for (i = 0; i < bar_count; i++)
-  {
-    ILI9341_FillRect((uint16_t)(i * bar_width), 0, bar_width, ILI9341_HEIGHT, colors[i]);
-  }
-}
-
-/**
-  * @brief  Draws a handful of filled and outlined shapes.
-  */
-static void Demo_Shapes(void)
-{
-  ILI9341_FillScreen(ILI9341_COLOR_BLACK);
-
-  ILI9341_FillRect(20, 20, 80, 60, ILI9341_COLOR_RED);
-  ILI9341_DrawRect(120, 20, 80, 60, ILI9341_COLOR_GREEN);
-
-  ILI9341_DrawLine(20, 110, 220, 110, ILI9341_COLOR_WHITE);
-  ILI9341_DrawLine(20, 110, 220, 260, ILI9341_COLOR_YELLOW);
-  ILI9341_DrawLine(220, 110, 20, 260, ILI9341_COLOR_CYAN);
-
-  ILI9341_FillRect(70, 220, 100, 40, ILI9341_COLOR_BLUE);
-  ILI9341_DrawRect(65, 215, 110, 50, ILI9341_COLOR_WHITE);
-}
-
-/**
-  * @brief  Demonstrates text rendering at a few different sizes.
-  */
-static void Demo_Text(void)
-{
-  ILI9341_FillScreen(ILI9341_COLOR_BLACK);
-
-  ILI9341_DrawString(10, 20, "HELLO CLASS!", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 3);
-  ILI9341_DrawString(10, 60, "ILI9341 QVGA TFT", ILI9341_COLOR_GREEN, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(10, 90, "DRIVEN OVER SPI1", ILI9341_COLOR_GREEN, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(10, 130, "TRY CHANGING THE", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 1);
-  ILI9341_DrawString(10, 145, "COLORS AND TEXT IN", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 1);
-  ILI9341_DrawString(10, 160, "DEMO TEXT() IN MAIN.C", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 1);
-}
-
-/**
-  * @brief  Live joystick (B1) status readout for a few seconds.
-  */
-static void Demo_Joystick(void)
-{
-  uint32_t start = HAL_GetTick();
-  char line[] = "L:_ C:_ D:_ R:_ U:_";
-
-  ILI9341_FillScreen(ILI9341_COLOR_BLACK);
-  ILI9341_DrawString(10, 10, "JOYSTICK TEST", ILI9341_COLOR_WHITE, ILI9341_COLOR_BLACK, 2);
-  ILI9341_DrawString(10, 40, "MOVE THE STICK (B1)", ILI9341_COLOR_YELLOW, ILI9341_COLOR_BLACK, 1);
-
-  while ((HAL_GetTick() - start) < 5000U)
-  {
-    uint8_t joy = Joystick_Read();
-
-    line[2]  = (joy & JOY_LEFT_MASK)   ? '1' : '0';
-    line[6]  = (joy & JOY_CENTER_MASK) ? '1' : '0';
-    line[10] = (joy & JOY_DOWN_MASK)   ? '1' : '0';
-    line[14] = (joy & JOY_RIGHT_MASK)  ? '1' : '0';
-    line[18] = (joy & JOY_UP_MASK)     ? '1' : '0';
-
-    ILI9341_DrawString(10, 70, line, ILI9341_COLOR_GREEN, ILI9341_COLOR_BLACK, 2);
-    HAL_Delay(50);
+    pet_screen_update(&g_pet.pet, &g_pet.anim, &g_ui);
   }
 }
 
