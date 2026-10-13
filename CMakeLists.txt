@@ -45,11 +45,36 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
+    # Pet logic and artwork. Kept here rather than in
+    # cmake/stm32cubemx/CMakeLists.txt, which CubeMX regenerates and would drop.
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_core.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_anim.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_render.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_view.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_ui.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_hud.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_ctl.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_screen.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_shake.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/mpu6050_regs.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/mpu6050.c
+    # Generated RGB565 sprite assets (produced by tools/png_to_rgb565.py).
+    ${CMAKE_SOURCE_DIR}/sprites/slime_content.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_delighted.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_hungry.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_miserable.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_eating.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_dead.c
+    ${CMAKE_SOURCE_DIR}/sprites/slime_runaway.c
+    # HUD icons (hunger, happiness).
+    ${CMAKE_SOURCE_DIR}/sprites/icon_hunger.c
+    ${CMAKE_SOURCE_DIR}/sprites/icon_happy.c
 )
 
 # Add include paths
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
-    # Add user defined include paths
+    # Generated RGB565 sprite assets, so pet_view.c can include their headers.
+    ${CMAKE_SOURCE_DIR}/sprites
 )
 
 # Add project symbols (macros)

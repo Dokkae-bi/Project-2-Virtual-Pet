@@ -9,7 +9,16 @@ created or customised for this project.
 
 | File | Contents |
 |---|---|
-| _TBD_ | _TBD_ |
+| `slime-pose-set-v1.png` | 2×2 sheet — CONTENT (0,0), DELIGHTED (0,1), EATING (1,0), MISERABLE (1,1) |
+| `slime-states-v1.png` | 1×3 sheet — HUNGRY (0,0), DEAD (0,1), RUNAWAY (0,2) |
+
+Cell coordinates are also recorded in each generated `.c` header comment, so any
+sprite can be traced back to the drawing and cell it came from.
+
+`sprites/<name>_preview.png` is a 4× enlargement of the **emitted** RGB565 data
+decoded back into pixels. It deliberately shows what the firmware will actually
+draw — quantization included — rather than an idealised view of the source, so a
+defect in the conversion cannot hide behind a clean-looking source image.
 
 Converted RGB565 output does **not** live here — generated `.c`/`.h` asset files
 belong with the firmware so the build can find them.
@@ -17,7 +26,9 @@ belong with the firmware so the build can find them.
 ## Conversion pipeline
 
 1. Draw or generate the master PNG at a generous size on a **flat single-colour
-   background** (magenta `#FF00FF` is the convention used so far) or transparent.
+   background** (white, as the current artwork uses; the keyer is
+   background-agnostic because it flood-fills inward from the border) or
+   transparent.
 2. Reduce to a limited palette with hard, aliased edges. Avoid gradients, soft
    shadows and anti-aliasing — they survive downscaling badly and bloat the asset.
 3. Downscale with **nearest-neighbour** to the target sprite size. Prefer an exact

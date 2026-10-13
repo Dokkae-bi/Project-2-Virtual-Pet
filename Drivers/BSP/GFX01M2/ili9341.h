@@ -43,6 +43,15 @@ void ILI9341_DrawVLine(uint16_t x, uint16_t y, uint16_t h, uint16_t color);
 void ILI9341_DrawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t color);
 void ILI9341_DrawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
 
+/* Draw an RGB565 bitmap with its top-left corner at (x, y). The array holds
+ * plain RGB565 values, the same as the ILI9341_COLOR_* constants above, and this
+ * converts them to the byte order the panel wants so the asset files stay
+ * readable. Sprites are already composited onto the stage colour when they are
+ * converted, so there's no per-pixel transparency test here and the whole region
+ * goes out in one address-window pass (~37 ms for a 64x64 sprite). */
+void ILI9341_DrawBitmap(uint16_t x, uint16_t y, uint16_t w, uint16_t h,
+                        const uint16_t *bmp);
+
 /* size = 1 draws the native 5x7 glyph, size = 2 draws it at double scale, etc. */
 void ILI9341_DrawChar(uint16_t x, uint16_t y, char c, uint16_t color, uint16_t bg, uint8_t size);
 void ILI9341_DrawString(uint16_t x, uint16_t y, const char *str, uint16_t color, uint16_t bg, uint8_t size);
