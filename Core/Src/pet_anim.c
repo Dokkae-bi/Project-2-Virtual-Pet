@@ -18,7 +18,7 @@ static const pet_anim_def_t g_anims[PET_ANIM_COUNT] = {
     /* frames, frame_ms, loop */
     { 4, 250, true  },   /* IDLE    - slow breathing */
     { 5, 120, false },   /* FEED    - berry goes in and is absorbed */
-    { 5, 100, false },   /* PLAY    - excited jiggle */
+    { 5, 100, false },   /* PET     - excited jiggle */
     { 5, 120, false },   /* CLEAN   - sparkle wash */
     { 4, 300, true  },   /* DEATH   - collapses, then stays collapsed */
     { 4, 300, true  },   /* RUNAWAY - slides away and keeps drifting */
@@ -38,7 +38,7 @@ const char *pet_anim_name(pet_anim_id_t id)
     switch (id) {
         case PET_ANIM_IDLE:    return "IDLE";
         case PET_ANIM_FEED:    return "FEED";
-        case PET_ANIM_PLAY:    return "PLAY";
+        case PET_ANIM_PET:    return "PET";
         case PET_ANIM_CLEAN:   return "CLEAN";
         case PET_ANIM_DEATH:   return "DEATH";
         case PET_ANIM_RUNAWAY: return "RUNAWAY";
@@ -56,7 +56,7 @@ void pet_anim_start(pet_anim_t *anim, pet_anim_id_t id, uint32_t now_ms)
     anim->elapsed_ms     = 0;
     anim->last_update_ms = now_ms;
     anim->finished       = false;
-    anim->play_count     = 0;
+    anim->pet_count     = 0;
 }
 
 void pet_anim_update(pet_anim_t *anim, uint32_t now_ms)
@@ -83,10 +83,10 @@ void pet_anim_update(pet_anim_t *anim, uint32_t now_ms)
             anim->frame++;
         } else if (def->loop) {
             anim->frame = 0;
-            anim->play_count++;
+            anim->pet_count++;
         } else {
             anim->finished = true;
-            anim->play_count++;
+            anim->pet_count++;
             break;
         }
     }
@@ -109,7 +109,7 @@ pet_anim_id_t pet_anim_for_action(pet_action_t action)
 {
     switch (action) {
         case PET_ACTION_FEED:  return PET_ANIM_FEED;
-        case PET_ACTION_PLAY:  return PET_ANIM_PLAY;
+        case PET_ACTION_PET:  return PET_ANIM_PET;
         case PET_ACTION_CLEAN: return PET_ANIM_CLEAN;
         default:               return PET_ANIM_IDLE;
     }
@@ -118,7 +118,7 @@ pet_anim_id_t pet_anim_for_action(pet_action_t action)
 /* true for the animations that play once and then hand back to idle. */
 static bool is_one_shot(pet_anim_id_t id)
 {
-    return (id == PET_ANIM_FEED) || (id == PET_ANIM_PLAY) ||
+    return (id == PET_ANIM_FEED) || (id == PET_ANIM_PET) ||
            (id == PET_ANIM_CLEAN) || (id == PET_ANIM_RESTART);
 }
 

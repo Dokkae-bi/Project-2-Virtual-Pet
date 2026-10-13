@@ -51,7 +51,7 @@
 
 /* --- action menu ---------------------------------------------------------- */
 
-/* Four rows (Feed/Play/Clean/Sleep). Row height 20 keeps the block on-panel
+/* Four rows (Feed/Pet/Clean/Sleep). Row height 20 keeps the block on-panel
  * under the happiness meter (ends at y 238). */
 #define PET_HUD_MENU_X          20u
 #define PET_HUD_MENU_Y          240u

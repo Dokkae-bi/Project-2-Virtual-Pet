@@ -70,14 +70,14 @@ static void test_each_action_changes_the_pet_and_the_animation(void)
           "feeding is slightly cheering");
     CHECK(c.anim.id == PET_ANIM_FEED, "the feeding animation starts");
 
-    section("Play");
+    section("Pet");
     pet_ctl_init(&c, 0);
-    CHECK(pet_ctl_action(&c, PET_ACTION_PLAY, 1, 1000), "playing is accepted");
-    CHECK(c.pet.happiness == PET_INIT_HAPPINESS + PET_PLAY_HAPPINESS_GAIN,
+    CHECK(pet_ctl_action(&c, PET_ACTION_PET, 1, 1000), "playing is accepted");
+    CHECK(c.pet.happiness == PET_INIT_HAPPINESS + PET_PET_HAPPINESS_GAIN,
           "happiness rises");
-    CHECK(c.pet.food == PET_INIT_FOOD - PET_PLAY_FOOD_COST,
+    CHECK(c.pet.food == PET_INIT_FOOD - PET_PET_FOOD_COST,
           "playing works up an appetite");
-    CHECK(c.anim.id == PET_ANIM_PLAY, "the playing animation starts");
+    CHECK(c.anim.id == PET_ANIM_PET, "the playing animation starts");
 
     section("Clean");
     pet_ctl_init(&c, 0);
@@ -113,7 +113,7 @@ static void test_refused_actions_do_nothing(void)
     CHECK(!pet_is_interactive(&c.pet), "and refuses interaction");
 
     CHECK(!pet_ctl_action(&c, PET_ACTION_FEED, 3, 90000), "feeding is refused");
-    CHECK(!pet_ctl_action(&c, PET_ACTION_PLAY, 3, 90000), "playing is refused");
+    CHECK(!pet_ctl_action(&c, PET_ACTION_PET, 3, 90000), "playing is refused");
     CHECK(!pet_ctl_action(&c, PET_ACTION_CLEAN, 3, 90000), "cleaning is refused");
     CHECK(c.pet.food == PET_STAT_MIN, "the refused actions left the pet unchanged");
     CHECK(c.anim.id == PET_ANIM_IDLE,
@@ -129,10 +129,10 @@ static void test_animation_returns_to_idle(void)
 
     section("An action animation plays out and hands back to idle");
     pet_ctl_init(&c, 0);
-    pet_ctl_action(&c, PET_ACTION_PLAY, 1, 0);
-    CHECK(c.anim.id == PET_ANIM_PLAY, "the playing animation is running");
+    pet_ctl_action(&c, PET_ACTION_PET, 1, 0);
+    CHECK(c.anim.id == PET_ANIM_PET, "the playing animation is running");
 
-    pet_ctl_tick(&c, 600);                   /* PLAY is 5 x 100 ms */
+    pet_ctl_tick(&c, 600);                   /* PET is 5 x 100 ms */
     CHECK(c.anim.id == PET_ANIM_IDLE,
           "once it finishes, the controller puts the animation back to idle");
 
@@ -154,7 +154,7 @@ static void test_restart(void)
     CHECK(c.pet.state == PET_ALIVE, "the pet is alive again");
     CHECK(c.pet.food == PET_INIT_FOOD, "food is back to the start");
     CHECK(c.anim.id == PET_ANIM_RESTART, "the re-forming animation plays");
-    CHECK(pet_ctl_action(&c, PET_ACTION_PLAY, 1, 96000), "actions work again");
+    CHECK(pet_ctl_action(&c, PET_ACTION_PET, 1, 96000), "actions work again");
 }
 
 static void test_null_is_safe(void)
@@ -178,10 +178,10 @@ static void test_sleep(void)
     CHECK(pet_is_sleeping(&c.pet), "the pet is sleeping");
     CHECK(c.anim.id == PET_ANIM_IDLE, "sleep stays on idle");
 
-    section("Play while asleep wakes and plays");
-    CHECK(pet_ctl_action(&c, PET_ACTION_PLAY, 1, 2000), "play is accepted while asleep");
+    section("Petting while asleep wakes and applies");
+    CHECK(pet_ctl_action(&c, PET_ACTION_PET, 1, 2000), "play is accepted while asleep");
     CHECK(!pet_is_sleeping(&c.pet), "play woke the pet");
-    CHECK(c.anim.id == PET_ANIM_PLAY, "the play animation started");
+    CHECK(c.anim.id == PET_ANIM_PET, "the play animation started");
 
     section("Wake without a care action");
     pet_ctl_init(&c, 0);

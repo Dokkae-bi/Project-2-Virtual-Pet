@@ -124,7 +124,7 @@ static void test_every_row_commits_its_action(void)
         pet_init(&awake, 0);
         CHECK(pet_ui_item_count() == 4, "four actions on the menu");
         CHECK(pet_ui_item_action(0, &awake) == PET_ACTION_FEED,  "Feed is on it");
-        CHECK(pet_ui_item_action(1, &awake) == PET_ACTION_PLAY,  "Play is on it");
+        CHECK(pet_ui_item_action(1, &awake) == PET_ACTION_PET,  "Pet is on the menu");
         CHECK(pet_ui_item_action(2, &awake) == PET_ACTION_CLEAN, "Clean is on it");
         CHECK(pet_ui_item_action(3, &awake) == PET_ACTION_SLEEP, "Sleep is on it");
     }

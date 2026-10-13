@@ -112,7 +112,7 @@ static void test_offset(void)
 
     for (i = 0; i < 16; i++) { src[i] = (uint16_t)(0x4000 + i); }
 
-    section("Vertical offset, used for the jump in PLAY");
+    section("Vertical offset, used for the jump in PET");
 
     /* 4x4 sprite on a 4x8 canvas sits in rows 4-7. */
     pet_render_sprite_scaled(base, 4, 8, src, 4, 4, &one, BG);

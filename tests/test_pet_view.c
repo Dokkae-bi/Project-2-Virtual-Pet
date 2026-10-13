@@ -54,7 +54,7 @@ static void test_anim_mapping(void)
     CHECK(pet_view_sprite_for_anim(PET_ANIM_DEATH)   == slime_dead,    "DEATH -> slime_dead");
     CHECK(pet_view_sprite_for_anim(PET_ANIM_RUNAWAY) == slime_runaway, "RUNAWAY -> slime_runaway");
     CHECK(pet_view_sprite_for_anim(PET_ANIM_IDLE)  == NULL, "IDLE has no sprite of its own, it uses the mood");
-    CHECK(pet_view_sprite_for_anim(PET_ANIM_PLAY)  == NULL, "PLAY uses the mood sprite with a transform");
+    CHECK(pet_view_sprite_for_anim(PET_ANIM_PET)  == NULL, "PET uses the mood sprite with a transform");
     CHECK(pet_view_sprite_for_anim(PET_ANIM_CLEAN) == NULL, "CLEAN uses the mood sprite with a transform");
 }
 
@@ -123,7 +123,7 @@ static void test_frame_index(void)
     section("Frame index");
     CHECK(pet_view_frame(NULL) == 0, "no animation gives frame 0");
 
-    pet_anim_start(&a, PET_ANIM_PLAY, 0);
+    pet_anim_start(&a, PET_ANIM_PET, 0);
     CHECK(pet_view_frame(&a) == 0, "starts on frame 0");
     pet_anim_update(&a, 100);
     CHECK(pet_view_frame(&a) == 1, "advances with time");

@@ -37,7 +37,7 @@ const uint16_t *pet_view_sprite_for_mood(pet_mood_t mood);
 
 /*
  * Sprite belonging to a specific animation, or NULL when that animation just
- * uses the mood sprite with a transform (PLAY, CLEAN and RESTART do).
+ * uses the mood sprite with a transform (PET, CLEAN and RESTART do).
  */
 const uint16_t *pet_view_sprite_for_anim(pet_anim_id_t anim);
 

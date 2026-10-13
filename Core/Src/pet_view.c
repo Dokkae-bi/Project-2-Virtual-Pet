@@ -29,7 +29,7 @@ const uint16_t *pet_view_sprite_for_mood(pet_mood_t mood)
 const uint16_t *pet_view_sprite_for_anim(pet_anim_id_t anim)
 {
     switch (anim) {
-        /* Only the states with their own artwork. PLAY, CLEAN and RESTART are
+        /* Only the states with their own artwork. PET, CLEAN and RESTART are
            the mood sprite scaled, so they need no extra drawings. */
         case PET_ANIM_FEED:    return slime_eating;
         case PET_ANIM_DEATH:   return slime_dead;

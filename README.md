@@ -65,13 +65,13 @@ their animation).
 | Action | Physical input | State effect | Animation |
 |---|---|---|---|
 | **Feed** (required) | menu item; the **potentiometer** selects the portion (1–5) | food +12 × portion, happiness +4 | `slime_eating` plus a squashing transform |
-| **Play** | menu item, or **shake the MPU-6050** | happiness +22, food −9 | jump transform of the mood sprite |
+| **Pet** | menu item, or **shake the MPU-6050** | happiness +22, food −9 | jump transform of the mood sprite |
 | **Clean** | menu item | happiness +14 | wobble transform of the mood sprite |
 | **Sleep** | menu item (row becomes **Wake** while asleep) | sleeping: food −1 / 2.4 s, happiness +1 / 2.0 s; night tint + “Sleeping” | idle |
 | Idle | — | passive decay | 4-frame breathing loop; the mood picks the sprite |
 
-While asleep, SELECT still opens the menu; Feed/Play/Clean wake then apply; Wake
-only wakes; shake is wake + Play. The pet can still starve in bed.
+While asleep, SELECT still opens the menu; Feed/Pet/Clean wake then apply; Wake
+only wakes; shake is wake + Pet. The pet can still starve in bed.
 
 Only Feed affects the pet differently depending on a peripheral: the analog input
 chooses how much it eats, and the menu displays the current portion next to the
@@ -163,9 +163,9 @@ How it works:
 - **A shake is 3 jolts within 1 s.** A jolt is |a| ≥ **1.8 g**; another can only
   be counted once |a| has dropped back to ≤ **1.3 g**, so one long push is one
   jolt. After a shake, the detector ignores the sensor for **1.5 s**, so non-stop
-  shaking can't spam Play. All of these are `#define`s at the top of
+  shaking can't spam Pet. All of these are `#define`s at the top of
   `Core/Inc/pet_shake.h`.
-- A shake triggers **Play** through `pet_ctl_action()`, exactly like the menu —
+- A shake triggers **Pet** through `pet_ctl_action()`, exactly like the menu —
   only on the pet screen, never behind an open menu. A dead or runaway pet
   refuses it.
 - **Tilting slides the slime** left and right along the stage. Inside a dead zone
@@ -224,7 +224,7 @@ How it works:
 | Joystick LEFT / RIGHT | reserved — no action yet |
 | User button B1 (`PC13`) | close the menu without acting (`PET_INPUT_BACK`) — **not wired up yet, see TODO.md** |
 | Potentiometer → ADC | selects the feeding portion, 1–5, shown beside the Feed row |
-| Shake the MPU-6050 (I2C2) | **Play** (wakes first if asleep) — pet screen only, at most once per 1.5 s |
+| Shake the MPU-6050 (I2C2) | **Pet** (wakes first if asleep) — pet screen only, at most once per 1.5 s |
 | Menu Sleep / Wake | Sleep starts rest; while asleep the row reads Wake |
 
 Input handling lives in `Core/Src/pet_ui.c` and is driven by logical events
@@ -483,7 +483,7 @@ history.
 **Malek Albdoor:** the MPU-6050 shake sensor — I2C2 bring-up on `PF1`/`PF0`
 (`MX_I2C2_Init`, `HAL_I2C_MspInit`), the MPU-6050 driver (`mpu6050`,
 `mpu6050_regs`), the shake detector (`pet_shake`), the non-blocking poll in
-`main.c` that turns a shake into Play with retry when the sensor is missing, and
+`main.c` that turns a shake into Pet with retry when the sensor is missing, and
 the 27 host checks in `test_pet_shake` and `test_mpu6050_regs`. The potentiometer
 — ADC3 bring-up on `PF3` (`MX_ADC3_Init`, `HAL_ADC_MspInit`, the ST ADC driver),
 the smoothing and hysteresis that map it to a portion (`pet_pot`), the poll in

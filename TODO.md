@@ -58,11 +58,11 @@ I2C, UART or SPI**. The LCD and its built-in joystick explicitly do not count �
 handout says "in addition to the LCD and its built-in joystick".
 
 **The digital device is done in code: a GY-521 / MPU-6050 on I2C2 (`PF1` SCL / `PF0` SDA),
-shake it to Play.** Wiring, behaviour and tuning are in README §2 "MPU-6050 shake
+shake it to Pet.** Wiring, behaviour and tuning are in README §2 "MPU-6050 shake
 sensor". Still to do on it, once the headers are soldered:
 
 - [ ] wire it (README table) and confirm `LD2` lights within ~1 s of boot
-- [ ] three hard shakes → the pet jumps; non-stop shaking → at most one Play per 1.5 s
+- [ ] three hard shakes → the pet jumps; non-stop shaking → at most one Pet per 1.5 s
 - [ ] boot with it unplugged → the pet runs normally, `LD2` stays off, no stutter
 - [ ] unplug and replug it while running → `LD2` follows, shaking works again
 - [ ] wiggle the VCC wire while shaking, and press the board's RESET mid-shake →
@@ -72,7 +72,7 @@ sensor". Still to do on it, once the headers are soldered:
       `PET_TILT_DIR` in `pet_tilt.h`); level it and it stops; it stops at both edges
       without leaving a trail; tune `PET_TILT_DEAD_COUNTS` / `PET_TILT_MAX_STEP`
 - [ ] shaking with the menu open, or with the pet dead/run away, does nothing
-- [ ] walking around or tapping the table does not trigger Play — if it does, raise
+- [ ] walking around or tapping the table does not trigger Pet — if it does, raise
       `PET_SHAKE_JOLT_MG` in `pet_shake.h`; if real shakes are missed, lower it
       toward 1500. Record the final values in the README.
 - [ ] if `LD2` never lights: `HAL_I2C_IsDeviceReady(&hi2c2, 0x68 << 1, 3, 10)` under
@@ -104,13 +104,13 @@ address".
 
 ## 3. Let a peripheral trigger an action directly (optional)
 
-**Play already does this — shaking the MPU-6050 calls it** (see `Shake_Poll` in
+**Pet already does this — shaking the MPU-6050 calls it** (see `Shake_Poll` in
 `main.c`). Feed and Clean still come only from the menu. The brief scores "Feed plus two
 additional actions; each includes physical input", so if a peripheral is meant to
 trigger one directly, call the same entry point the menu uses:
 
 ```c
-pet_ctl_action(&g_pet, PET_ACTION_PLAY, 1u, HAL_GetTick());
+pet_ctl_action(&g_pet, PET_ACTION_PET, 1u, HAL_GetTick());
 ```
 
 That is the whole interface. It applies the same state change and plays the same

@@ -12,7 +12,7 @@
  *
  * IDLE    slow breathing, so only the height changes
  * FEED    squashes down and spreads out as the berry goes in
- * PLAY    jump: stretches upward while rising off the ground
+ * PET     jump: stretches upward while rising off the ground
  * CLEAN   small wobble either side of rest
  * DEATH   collapses flat into a puddle
  * RUNAWAY drifts sideways, so repeating it reads as moving away
@@ -33,7 +33,7 @@ static const pet_xform_t X_FEED[5] = {
     { 256, 256, 0, 0 },
 };
 
-static const pet_xform_t X_PLAY[5] = {
+static const pet_xform_t X_PET[5] = {
     { 256, 256,  0,  0 },
     { 248, 292,  0, -4 },
     { 244, 320,  0, -8 },
@@ -76,7 +76,7 @@ const pet_xform_t *pet_frame_xform(pet_anim_id_t anim, uint8_t frame)
 
     switch (anim) {
         case PET_ANIM_FEED:    table = X_FEED;    count = 5; break;
-        case PET_ANIM_PLAY:    table = X_PLAY;    count = 5; break;
+        case PET_ANIM_PET:    table = X_PET;    count = 5; break;
         case PET_ANIM_CLEAN:   table = X_CLEAN;   count = 5; break;
         case PET_ANIM_DEATH:   table = X_DEATH;   count = 4; break;
         case PET_ANIM_RUNAWAY: table = X_RUNAWAY; count = 4; break;

@@ -90,11 +90,11 @@ static void test_clamping(void)
     CHECK(p.food == PET_STAT_MAX, "over-feeding stops at 100");
     CHECK(p.happiness == 69, "feeding adds the happiness bonus");
 
-    pet_play(&p, 21000);
+    pet_pet(&p, 21000);
     pet_clean(&p, 22000);
     CHECK(p.happiness <= PET_STAT_MAX, "happiness never goes over 100");
 
-    { int i; for (i = 0; i < 20; i++) { pet_play(&p, 23000); } }
+    { int i; for (i = 0; i < 20; i++) { pet_pet(&p, 23000); } }
     CHECK(p.happiness == PET_STAT_MAX, "happiness stops at exactly 100");
 }
 
@@ -122,11 +122,11 @@ static void test_action_effects(void)
 
     section("Action effects");
     pet_init(&p, 0);
-    pet_play(&p, 1000);
-    CHECK(p.happiness == PET_INIT_HAPPINESS + PET_PLAY_HAPPINESS_GAIN, "play raises happiness");
-    CHECK(p.food == PET_INIT_FOOD - PET_PLAY_FOOD_COST, "play costs food");
-    CHECK(p.last_action == PET_ACTION_PLAY, "play is recorded as the last action");
-    CHECK(p.action_count[PET_ACTION_PLAY] == 1, "play is counted");
+    pet_pet(&p, 1000);
+    CHECK(p.happiness == PET_INIT_HAPPINESS + PET_PET_HAPPINESS_GAIN, "play raises happiness");
+    CHECK(p.food == PET_INIT_FOOD - PET_PET_FOOD_COST, "play costs food");
+    CHECK(p.last_action == PET_ACTION_PET, "play is recorded as the last action");
+    CHECK(p.action_count[PET_ACTION_PET] == 1, "play is counted");
 
     pet_init(&p, 0);
     pet_clean(&p, 1000);
@@ -166,27 +166,27 @@ static void test_age_clock(void)
     CHECK(pet_age_day(NULL) == 1 && pet_age_hour(NULL) == 0, "NULL is safe");
 }
 
-static void test_play_on_empty_stomach(void)
+static void test_pet_on_empty_stomach(void)
 {
     pet_t p;
-    int16_t happiness_before_play;
+    int16_t happiness_before_pet;
     pet_init(&p, 0);
     section("A hungry pet refuses play until fed");
     pet_tick(&p, 78000);          /* 65 units of food gone: 75 -> 10 */
-    happiness_before_play = p.happiness;
-    CHECK(p.food == PET_PLAY_HUNGER_LIMIT, "food reaches the play refusal threshold");
-    CHECK(!pet_play(&p, 78000), "play is refused at food 10");
+    happiness_before_pet = p.happiness;
+    CHECK(p.food == PET_PET_HUNGER_LIMIT, "food reaches the play refusal threshold");
+    CHECK(!pet_pet(&p, 78000), "play is refused at food 10");
     CHECK(p.last_action == PET_ACTION_NONE, "a refused play is not recorded");
-    CHECK(p.action_count[PET_ACTION_PLAY] == 0, "a refused play is not counted");
-    CHECK(p.happiness == happiness_before_play, "a refused play has no effect");
+    CHECK(p.action_count[PET_ACTION_PET] == 0, "a refused play is not counted");
+    CHECK(p.happiness == happiness_before_pet, "a refused play has no effect");
 
     pet_tick(&p, 79200);
-    CHECK(p.food == PET_PLAY_HUNGER_LIMIT - 1, "food can fall below the refusal threshold");
-    CHECK(!pet_play(&p, 79200), "play remains refused while hungrier");
+    CHECK(p.food == PET_PET_HUNGER_LIMIT - 1, "food can fall below the refusal threshold");
+    CHECK(!pet_pet(&p, 79200), "play remains refused while hungrier");
 
     CHECK(pet_feed(&p, 1, 79200), "feeding is still accepted during the tantrum");
-    CHECK(p.food > PET_PLAY_HUNGER_LIMIT, "feeding raises food above the threshold");
-    CHECK(pet_play(&p, 79200), "play is accepted again after feeding");
+    CHECK(p.food > PET_PET_HUNGER_LIMIT, "feeding raises food above the threshold");
+    CHECK(pet_pet(&p, 79200), "play is accepted again after feeding");
 }
 
 static void test_death_by_neglect(void)
@@ -234,7 +234,7 @@ static void test_runaway_by_feeding(void)
         CHECK(p.food == frozen.food && p.happiness == frozen.happiness,
               "statistics stop changing once the pet has run away");
         CHECK(pet_feed(&p, 5, t + 1000) == false, "feeding is refused");
-        CHECK(pet_play(&p, t + 1000) == false, "playing is refused");
+        CHECK(pet_pet(&p, t + 1000) == false, "playing is refused");
     }
 }
 
@@ -305,9 +305,9 @@ static void test_sleep(void)
 
     pet_init(&p, 0);
     CHECK(pet_sleep(&p, 0), "asleep for play");
-    CHECK(pet_play(&p, 1000), "play is accepted while asleep");
+    CHECK(pet_pet(&p, 1000), "play is accepted while asleep");
     CHECK(!pet_is_sleeping(&p), "play woke the pet");
-    CHECK(p.happiness == PET_INIT_HAPPINESS + PET_PLAY_HAPPINESS_GAIN,
+    CHECK(p.happiness == PET_INIT_HAPPINESS + PET_PET_HAPPINESS_GAIN,
           "play still raised happiness");
 
     section("Can starve in bed; restart clears sleep");
@@ -333,7 +333,7 @@ int main(void)
     test_clamping();
     test_feed_portion_clamping();
     test_action_effects();
-    test_play_on_empty_stomach();
+    test_pet_on_empty_stomach();
     test_age_clock();
     test_death_by_neglect();
     test_runaway_by_feeding();

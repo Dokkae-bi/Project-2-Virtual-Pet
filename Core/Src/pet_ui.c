@@ -12,7 +12,7 @@ static const struct {
     const char  *label;
 } UI_ITEMS[] = {
     { PET_ACTION_FEED,  "Feed"  },
-    { PET_ACTION_PLAY,  "Play"  },
+    { PET_ACTION_PET,  "Pet"   },
     { PET_ACTION_CLEAN, "Clean" },
     { PET_ACTION_SLEEP, "Sleep" },
 };

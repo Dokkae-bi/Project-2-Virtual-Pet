@@ -493,13 +493,13 @@ int main(void)
       (void)pet_ctl_action(&g_pet, result.action, g_portion, now);
     }
 
-    /* Shaking the MPU-6050 plays with the pet, the same as choosing Play from
+    /* Shaking the MPU-6050 counts as petting, the same as choosing Pet from
        the menu. Ignored while the menu is open, so it can't act behind it. A
        dead or runaway pet refuses it inside pet_ctl_action. Polled every pass
        so a shake made with the menu open is dropped rather than queued. */
     if (Shake_Poll(now) && (pet_ui_screen(&g_ui) == PET_SCREEN_PET))
     {
-      (void)pet_ctl_action(&g_pet, PET_ACTION_PLAY, 1u, now);
+      (void)pet_ctl_action(&g_pet, PET_ACTION_PET, 1u, now);
     }
 
     /* Tilt slides the slime, but only on the pet screen and only while it is

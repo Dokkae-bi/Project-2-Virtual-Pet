@@ -50,7 +50,7 @@ be well-loved but starving, and the player must be able to tell those apart.
 | Action | Physical input | Model effect | Animation | Artwork |
 |---|---|---|---|---|
 | **FEED** *(required)* | menu item; **Potentiometer → ADC** selects portion 1–5 | food +12×portion, happiness +4 | squashes down and spreads as the berry goes in | `slime_eating` + scaling |
-| **PLAY** | menu item | happiness +22, food −9 | jump: stretches upward while rising | mood sprite + scaling |
+| **PET** | menu item | happiness +22, food −9 | jump: stretches upward while rising | mood sprite + scaling |
 | **CLEAN** | menu item | happiness +14 | wobble either side of rest | mood sprite + scaling |
 | Menu navigation | GFX01M2 joystick | select / activate / restart | — | code only |
 | Mood voice | **PWM buzzer** | tone per mood, chirp per action | — | code only |
@@ -62,7 +62,7 @@ Only the three action animations need `pet_render.c` scaling; Feed additionally
 uses one of the seven drawn sprites. No animation frames are stored as artwork,
 which is what keeps the flash cost at 56 KB instead of 221 KB — see §8.
 
-**Implemented beyond the brief:** shake-to-Play (MPU-6050), potentiometer Feed
+**Implemented beyond the brief:** shake-to-Pet (MPU-6050), potentiometer Feed
 portion, and menu **Sleep** / **Wake** (happiness recovers while food drains
 slowly; night tint). **Not yet implemented:** PWM buzzer.
 
@@ -112,7 +112,7 @@ superseded where the two disagree.
 | Stage | y 0–179 | the slime, centred, 64×64 or 96×96 | blit the sprite region only |
 | Food meter | y 184–196 | 160×12 bar + label | redraw **changed segment only** |
 | Happiness meter | y 200–212 | 160×12 bar + label | redraw **changed segment only** |
-| Menu | y 240–319 | four action items (Feed/Play/Clean/Sleep↔Wake) | redraw on selection change only |
+| Menu | y 240–319 | four action items (Feed/Pet/Clean/Sleep↔Wake) | redraw on selection change only |
 
 Meters and menu are drawn with `ILI9341_FillRect` and `ILI9341_DrawString` — they
 need **no artwork**.
@@ -148,7 +148,7 @@ actions, plus distinct death and runaway presentations.
 |---|---|---|
 | Idle | 4 | slow breathing squash/stretch, looped |
 | Feed | 5 | berry enters, absorbed, ripple |
-| Play | 5 | excited jiggle, bounce up |
+| Pet | 5 | excited jiggle, bounce up |
 | Clean | 5 | sparkle wash, brightness lift |
 | Death | 4 | collapse into a flat puddle |
 | Runaway | 4 | slide off the stage, fading |
@@ -180,7 +180,7 @@ of flash is left unused.
 | HUD icons (berry, heart) | ✅ drawn and converted |
 | **`main.c` integration** | ✅ **done — the pet runs** |
 | User button B1 wired to `PET_INPUT_BACK` | ❌ not wired up |
-| I2C input: MPU-6050 shake → Play (`pet_shake`, `mpu6050`) | ✅ implemented, 27 host checks — not yet on hardware |
+| I2C input: MPU-6050 shake → Pet (`pet_shake`, `mpu6050`) | ✅ implemented, 27 host checks — not yet on hardware |
 | Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, 17 host checks — not yet on hardware |
 | Sleep / night (menu Sleep, wake paths, night tint) | ✅ implemented — not yet on hardware |
 | Verified on real hardware | ❌ blocked on the unsoldered headers |

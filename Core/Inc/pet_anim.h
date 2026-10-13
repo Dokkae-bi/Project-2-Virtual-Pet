@@ -19,7 +19,7 @@
 typedef enum {
     PET_ANIM_IDLE = 0,      /* loops; the mood picks which sprite */
     PET_ANIM_FEED,          /* one-shot, started by the FEED action */
-    PET_ANIM_PLAY,          /* one-shot, started by the PLAY action */
+    PET_ANIM_PET,          /* one-shot, started by the PET action */
     PET_ANIM_CLEAN,         /* one-shot, started by the CLEAN action */
     PET_ANIM_DEATH,         /* loops; the pet starved */
     PET_ANIM_RUNAWAY,       /* loops; the pet left */
@@ -41,7 +41,7 @@ typedef struct {
     uint32_t      elapsed_ms;    /* time spent in the current frame */
     uint32_t      last_update_ms;
     bool          finished;      /* set once a one-shot animation ends */
-    uint32_t      play_count;    /* completed passes, for tests and debug */
+    uint32_t      pet_count;    /* completed passes, for tests and debug */
 } pet_anim_t;
 
 /* Frame count and period for every animation. Never returns NULL. */

@@ -60,7 +60,7 @@ static void test_start_and_advance(void)
     CHECK(pet_anim_frame(&a) == 3, "frame 3 after three periods");
     pet_anim_update(&a, 1000);
     CHECK(pet_anim_frame(&a) == 0, "wraps back to frame 0");
-    CHECK(a.play_count == 1, "one loop counted");
+    CHECK(a.pet_count == 1, "one loop counted");
 
     pet_anim_update(&a, 1100);
     CHECK(pet_anim_frame(&a) == 0, "a partial period doesn't advance the frame");
@@ -75,11 +75,11 @@ static void test_one_shot(void)
     pet_anim_update(&a, 600);           /* 600 / 120 = 5 periods */
     CHECK(pet_anim_frame(&a) == 4, "ends on the last frame");
     CHECK(pet_anim_finished(&a), "reports finished");
-    CHECK(a.play_count == 1, "one pass counted");
+    CHECK(a.pet_count == 1, "one pass counted");
 
     pet_anim_update(&a, 5000);
     CHECK(pet_anim_frame(&a) == 4, "holds the last frame once finished");
-    CHECK(a.play_count == 1, "doesn't keep counting after finishing");
+    CHECK(a.pet_count == 1, "doesn't keep counting after finishing");
 }
 
 static void test_frequency_independence(void)
@@ -113,14 +113,14 @@ static void test_long_gap(void)
     pet_anim_start(&a, PET_ANIM_IDLE, 0);
     pet_anim_update(&a, 1000);          /* 4 periods of 250 ms = exactly one loop */
     CHECK(pet_anim_frame(&a) == 0, "looping animation consumes whole loops");
-    CHECK(a.play_count == 1, "and counts exactly one");
+    CHECK(a.pet_count == 1, "and counts exactly one");
 }
 
 static void test_action_mapping(void)
 {
     section("Action to animation mapping");
     CHECK(pet_anim_for_action(PET_ACTION_FEED)  == PET_ANIM_FEED,  "FEED -> FEED");
-    CHECK(pet_anim_for_action(PET_ACTION_PLAY)  == PET_ANIM_PLAY,  "PLAY -> PLAY");
+    CHECK(pet_anim_for_action(PET_ACTION_PET)  == PET_ANIM_PET,  "PET -> PET");
     CHECK(pet_anim_for_action(PET_ACTION_CLEAN) == PET_ANIM_CLEAN, "CLEAN -> CLEAN");
     CHECK(pet_anim_for_action(PET_ACTION_SLEEP) == PET_ANIM_IDLE,  "SLEEP -> IDLE");
     CHECK(pet_anim_for_action(PET_ACTION_NONE)  == PET_ANIM_IDLE,  "no action -> IDLE");
@@ -145,11 +145,11 @@ static void test_selection(void)
 
     section("A finished life beats any animation still running");
     pet_init(&p, 0);
-    pet_anim_start(&a, PET_ANIM_PLAY, 1000);
+    pet_anim_start(&a, PET_ANIM_PET, 1000);
     pet_tick(&p, 90000);                /* starved */
     CHECK(p.state == PET_DEAD, "pet has died");
     CHECK(pet_anim_select(&p, &a) == PET_ANIM_DEATH,
-          "DEATH wins even though PLAY is still running");
+          "DEATH wins even though PET is still running");
 
     { pet_t r; uint32_t t; bool ran = false;
       pet_init(&r, 0);

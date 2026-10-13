@@ -39,7 +39,7 @@ bool pet_ctl_action(pet_ctl_t *ctl, pet_action_t action, uint8_t portion,
 
     switch (action) {
         case PET_ACTION_FEED:  accepted = pet_feed(&ctl->pet, portion, now_ms); break;
-        case PET_ACTION_PLAY:  accepted = pet_play(&ctl->pet, now_ms);          break;
+        case PET_ACTION_PET:  accepted = pet_pet(&ctl->pet, now_ms);          break;
         case PET_ACTION_CLEAN: accepted = pet_clean(&ctl->pet, now_ms);         break;
         case PET_ACTION_SLEEP: accepted = pet_sleep(&ctl->pet, now_ms);         break;
         default:               return false;

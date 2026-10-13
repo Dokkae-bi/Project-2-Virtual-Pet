@@ -159,16 +159,16 @@ bool pet_feed(pet_t *pet, uint8_t portion, uint32_t now_ms)
     return true;
 }
 
-bool pet_play(pet_t *pet, uint32_t now_ms)
+bool pet_pet(pet_t *pet, uint32_t now_ms)
 {
-    /* Hunger tantrum: refuse Play when food is too low. */
-    if ((pet == NULL) || (pet->food <= PET_PLAY_HUNGER_LIMIT)) { return false; }
+    /* Hunger tantrum: refuse petting when food is too low. */
+    if ((pet == NULL) || (pet->food <= PET_PET_HUNGER_LIMIT)) { return false; }
     pet_wake(pet, now_ms);
 
-    if (!begin_action(pet, PET_ACTION_PLAY, now_ms)) { return false; }
+    if (!begin_action(pet, PET_ACTION_PET, now_ms)) { return false; }
 
-    apply_delta(&pet->happiness, +PET_PLAY_HAPPINESS_GAIN);
-    apply_delta(&pet->food,      -PET_PLAY_FOOD_COST);
+    apply_delta(&pet->happiness, +PET_PET_HAPPINESS_GAIN);
+    apply_delta(&pet->food,      -PET_PET_FOOD_COST);
     return true;
 }
 
@@ -245,7 +245,7 @@ const char *pet_action_name(pet_action_t action)
     switch (action) {
         case PET_ACTION_NONE:  return "NONE";
         case PET_ACTION_FEED:  return "FEED";
-        case PET_ACTION_PLAY:  return "PLAY";
+        case PET_ACTION_PET:  return "PET";
         case PET_ACTION_CLEAN: return "CLEAN";
         case PET_ACTION_SLEEP: return "SLEEP";
         default:               return "?";

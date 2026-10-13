@@ -4,7 +4,7 @@
  *
  * The things that matter on the board: resting never fires, a real shake fires
  * exactly once, holding it hard doesn't count as a shake, continuous shaking is
- * rate-limited, and a broken sensor can't trigger Play on its own.
+ * rate-limited, and a broken sensor can't trigger Pet on its own.
  *
  *     cc -std=c11 -Wall -Wextra -I Core/Inc tests/test_pet_shake.c \
  *        Core/Src/pet_shake.c -o /tmp/test_pet_shake && /tmp/test_pet_shake
