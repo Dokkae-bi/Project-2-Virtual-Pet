@@ -44,6 +44,11 @@
 #define PET_HUD_TRACK_W         160u
 #define PET_HUD_TRACK_H         12u
 
+/* The number beside each bar. It is cleared before each redraw, so it must be
+ * wide enough for the longest value, "100": 3 characters, 12 px each. */
+#define PET_HUD_READOUT_X       (PET_HUD_TRACK_X + PET_HUD_TRACK_W + 4u)
+#define PET_HUD_READOUT_W       36u
+
 /* --- action menu ---------------------------------------------------------- */
 
 #define PET_HUD_MENU_X          20u

@@ -174,7 +174,7 @@ of flash is left unused.
 | Display driver sprite blit (`ILI9341_DrawBitmap`) | ✅ implemented |
 | PNG → RGB565 converter (`tools/png_to_rgb565.py`) | ✅ implemented |
 | Artwork: all 7 states drawn and converted | ✅ done |
-| HUD layout and meter maths (`Core/Src/pet_hud.c`) | ✅ implemented, 49 host checks |
+| HUD layout and meter maths (`Core/Src/pet_hud.c`) | ✅ implemented, 52 host checks |
 | Action handling (`Core/Src/pet_ctl.c`) | ✅ implemented, 39 host checks |
 | Screen drawing (`Core/Src/pet_screen.c`) | ✅ implemented |
 | HUD icons (berry, heart) | ✅ drawn and converted |
@@ -184,5 +184,5 @@ of flash is left unused.
 | Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, 17 host checks — not yet on hardware |
 | Verified on real hardware | ❌ blocked on the unsoldered headers |
 
-**397 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
+**400 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
 still outstanding.
