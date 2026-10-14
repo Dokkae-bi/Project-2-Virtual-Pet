@@ -183,5 +183,5 @@ of flash is left unused.
 | Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, 17 host checks — not yet on hardware |
 | Verified on real hardware | ❌ blocked on the unsoldered headers |
 
-**352 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
+**374 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
 still outstanding.

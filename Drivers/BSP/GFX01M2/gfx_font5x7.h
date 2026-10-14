@@ -1,8 +1,8 @@
 /**
  ******************************************************************************
  * @file    gfx_font5x7.h
- * @brief   Compact 5x7 monospace bitmap font (space, digits, uppercase
- *          letters and a few punctuation marks) used by the ILI9341 driver.
+ * @brief   Compact 5x7 monospace bitmap font (space through lowercase z: digits, both cases
+ *          of letters and punctuation) used by the ILI9341 driver.
  ******************************************************************************
  */
 #ifndef GFX_FONT5X7_H
@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 #define GFX_FONT5X7_FIRST_CHAR  0x20U /* ' ' */
-#define GFX_FONT5X7_LAST_CHAR   0x5AU /* 'Z' */
+#define GFX_FONT5X7_LAST_CHAR   0x7AU /* 'z' */
 #define GFX_FONT5X7_WIDTH       5U
 #define GFX_FONT5X7_HEIGHT      7U
 

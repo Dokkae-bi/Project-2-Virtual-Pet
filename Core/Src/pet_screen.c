@@ -54,7 +54,7 @@ static void draw_meter(uint16_t row_y, const uint16_t *icon, int16_t value)
 
     (void)snprintf(text, sizeof(text), "%d", (int)value);
     ILI9341_DrawString(READOUT_X, (uint16_t)(row_y + 4u), text,
-                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, 2);
+                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
 }
 
 /* Clears the lower block, then draws the menu or leaves it blank. */
@@ -75,7 +75,7 @@ static void draw_lower_block(const pet_ui_t *ui)
 
         ILI9341_FillRect(PET_HUD_MENU_X, row_y, PET_HUD_MENU_W, PET_HUD_MENU_ROW_H, bg);
         ILI9341_DrawString((uint16_t)(PET_HUD_MENU_X + 12u), (uint16_t)(row_y + 5u),
-                           pet_ui_item_label(i), PET_HUD_COL_TEXT, bg, 2);
+                           pet_ui_item_label(i), PET_HUD_COL_TEXT, bg, PET_HUD_TEXT_SCALE);
 
         /* The Feed row also shows how much the analog input currently selects,
            so what the player reads is what the pet will actually get. */
@@ -86,7 +86,7 @@ static void draw_lower_block(const pet_ui_t *ui)
             (void)snprintf(amount, sizeof(amount), "x%u", (unsigned)pet_ui_portion(ui));
             ILI9341_DrawString((uint16_t)(PET_HUD_MENU_X + PET_HUD_MENU_W - 36u),
                                (uint16_t)(row_y + 5u), amount,
-                               PET_HUD_COL_TEXT, bg, 2);
+                               PET_HUD_COL_TEXT, bg, PET_HUD_TEXT_SCALE);
         }
     }
 }
@@ -100,14 +100,14 @@ static void draw_ending(const pet_t *pet)
         return;
     }
 
-    line = (pet->state == PET_DEAD) ? "Your pet starved" : "Your pet ran away";
+    line = (pet->state == PET_DEAD) ? PET_HUD_TEXT_STARVED : PET_HUD_TEXT_RAN_AWAY;
 
     ILI9341_DrawString(PET_HUD_MENU_X, (uint16_t)(PET_HUD_MENU_Y + 8u), line,
-                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, 2);
-    ILI9341_DrawString(PET_HUD_MENU_X, (uint16_t)(PET_HUD_MENU_Y + 34u), "Press select",
-                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, 2);
-    ILI9341_DrawString(PET_HUD_MENU_X, (uint16_t)(PET_HUD_MENU_Y + 54u), "to restart",
-                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, 2);
+                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
+    ILI9341_DrawString(PET_HUD_MENU_X, (uint16_t)(PET_HUD_MENU_Y + 34u), PET_HUD_TEXT_RESTART1,
+                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
+    ILI9341_DrawString(PET_HUD_MENU_X, (uint16_t)(PET_HUD_MENU_Y + 54u), PET_HUD_TEXT_RESTART2,
+                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
 }
 
 static void draw_pet(const pet_t *pet, const pet_anim_t *anim)

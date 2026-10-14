@@ -6,7 +6,7 @@ Tamagotchi-style virtual pet running on a **NUCLEO-L496ZG-P** with an
 > **Status:** **the pet runs.** `main.c` starts it, the joystick drives the menu,
 > and the sprite, both meters and the menu are drawn on the panel. Shaking the
 > MPU-6050 (I2C) plays with the pet, and a potentiometer (ADC) sets how much it
-> eats. 347 host checks pass with no board attached. What's left is the hardware
+> eats. 374 host checks pass with no board attached. What's left is the hardware
 > verification — **see
 > [`TODO.md`](TODO.md)**.
 
@@ -245,7 +245,7 @@ VirtualPet/
 ├── Middlewares/                ST USB host library (compiled, NOT initialised)
 ├── USB_HOST/                   USB host application (unused — see PA9 warning)
 ├── sprites/                    generated RGB565 assets + preview PNGs
-├── tests/                      347 host checks, run on a PC with no board
+├── tests/                      374 host checks, run on a PC with no board
 ├── tools/
 │   └── png_to_rgb565.py        artwork → RGB565 converter
 └── docs/
@@ -278,6 +278,8 @@ tested on a PC.
 
 Supplied by the course: `ILI9341_Init`, `FillScreen`, `DrawPixel`, `FillRect`,
 `DrawHLine`, `DrawVLine`, `DrawLine`, `DrawRect`, `DrawChar`, `DrawString`.
+The 5×7 font covers space through lowercase `z` (digits, both cases, some
+punctuation); anything else draws blank.
 
 **Added by the team:** `ILI9341_DrawBitmap` — an opaque RGB565 sprite blit. It had
 to go in `ili9341.c` because `LCD_SetAddressWindow()` is `static` there. It
@@ -374,7 +376,8 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 | `test_pet_shake` | 16 |
 | `test_mpu6050_regs` | 11 |
 | `test_pet_pot` | 17 |
-| **Total** | **352** |
+| `test_ui_text` | 22 |
+| **Total** | **374** |
 
 ---
 

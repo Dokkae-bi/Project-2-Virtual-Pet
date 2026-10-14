@@ -1,7 +1,7 @@
 # Project 2 — what's left to do
 
 **As of 2026-10-13.** The pet runs. `main.c` starts it, the joystick drives the
-menu, and the sprite, both meters and the menu are drawn on the panel. **347 host
+menu, and the sprite, both meters and the menu are drawn on the panel. **374 host
 checks pass with no board attached.**
 
 Both required peripherals are in the code (the MPU-6050 on I2C and the potentiometer
@@ -24,7 +24,7 @@ it on hardware.
 | `pet_screen` | draws the screen — the only HAL-facing pet module |
 | `main.c` | starts the pet, reads the joystick, runs the loop |
 | `sprites/` | 7 slime states + 2 HUD icons, all converted |
-| `tests/` | 347 checks across 10 suites, all passing |
+| `tests/` | 374 checks across 11 suites, all passing |
 | `tools/png_to_rgb565.py` | the artwork converter, re-runnable |
 | `Drivers/BSP/GFX01M2/ili9341.c` | added `ILI9341_DrawBitmap` — the supplied BSP had no way to draw an image |
 
@@ -175,6 +175,8 @@ first hardware session as a bring-up, not a formality.
    only if it regenerates cleanly. **Back up `main.c` before enabling ADC1 or I2C1
    in CubeMX**, then diff afterwards. Losing the main loop to a regeneration is an
    easy afternoon gone.
+10. **Any character outside space..`z` (and `#$%&*>@`) draws blank.**
+    `tests/test_ui_text.c` catches it for UI strings.
 
 ---
 
@@ -200,8 +202,9 @@ Same pattern for the others:
 | `test_pet_shake` | `pet_shake.c` |
 | `test_mpu6050_regs` | `mpu6050_regs.c` |
 | `test_pet_pot` | `pet_pot.c` |
+| `test_ui_text` | `gfx_font5x7.c pet_ui.c pet_core.c`, plus `-I Drivers/BSP/GFX01M2` |
 
-Expected totals: **50 / 54 / 38 / 60 / 27 / 40 / 39 / 16 / 11 / 17 = 352 checks.**
+Expected totals: **50 / 54 / 38 / 60 / 27 / 40 / 39 / 16 / 11 / 17 / 22 = 374 checks.**
 
 **Firmware build** — use the STM32 VS Code extension, or:
 
