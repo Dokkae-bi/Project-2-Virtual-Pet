@@ -69,7 +69,7 @@ static void test_selection_follows_state(void)
     CHECK(pet_view_sprite(&p, &a) == slime_delighted,
           "a new pet is at happiness 75, so it shows the delighted pose");
 
-    { pet_t h; pet_init(&h, 0); pet_tick(&h, 70000);   /* hunger 83 */
+    { pet_t h; pet_init(&h, 0); pet_tick(&h, 70000);   /* food 17 */
       CHECK(pet_view_sprite(&h, &a) == slime_hungry, "a very hungry pet shows the hungry pose"); }
 
     /* A pet left alone starves before it gets this unhappy - it dies at 90 s but
@@ -79,7 +79,7 @@ static void test_selection_follows_state(void)
       pet_init(&m, 0);
       for (t = 1000; t <= 600000; t += 1000) {
           pet_tick(&m, t);
-          if (m.hunger >= 50) { pet_feed(&m, 5, t); }
+          if (m.food <= 50) { pet_feed(&m, 5, t); }
           if (m.state != PET_ALIVE) { break; }
           if (pet_mood(&m) == PET_MOOD_MISERABLE) { miserable = true; break; }
       }
@@ -107,7 +107,7 @@ static void test_terminal_states_win(void)
       pet_init(&r, 0);
       for (t = 1000; t <= 600000; t += 1000) {
           pet_tick(&r, t);
-          if (r.hunger >= 50) { pet_feed(&r, 5, t); }
+          if (r.food <= 50) { pet_feed(&r, 5, t); }
           if (r.state == PET_RUNAWAY) { ran = true; break; }
           if (r.state == PET_DEAD) { break; }
       }

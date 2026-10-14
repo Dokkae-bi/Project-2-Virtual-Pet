@@ -37,7 +37,7 @@ static void test_init(void)
     pet_init(&p, 0);
 
     section("Initialisation");
-    CHECK(p.hunger == PET_INIT_HUNGER, "hunger starts at PET_INIT_HUNGER");
+    CHECK(p.food == PET_INIT_FOOD, "food starts at PET_INIT_FOOD");
     CHECK(p.happiness == PET_INIT_HAPPINESS, "happiness starts at PET_INIT_HAPPINESS");
     CHECK(p.state == PET_ALIVE, "starts alive");
     CHECK(pet_is_interactive(&p), "a new pet accepts interaction");
@@ -50,8 +50,8 @@ static void test_time_evolution(void)
     pet_init(&p, 0);
     pet_tick(&p, 20000);   /* 20 s */
 
-    section("Evolution over 20 s (+1 hunger / 1.2 s, -1 happiness / 2.0 s)");
-    CHECK(p.hunger == 41, "hunger 25 -> 41");
+    section("Evolution over 20 s (-1 food / 1.2 s, -1 happiness / 2.0 s)");
+    CHECK(p.food == 59, "food 75 -> 59");
     CHECK(p.happiness == 65, "happiness 75 -> 65");
     CHECK(p.age_ms == 20000, "age counts the elapsed time");
     CHECK(p.state == PET_ALIVE, "still alive");
@@ -71,11 +71,11 @@ static void test_call_frequency_independence(void)
     }
 
     section("Ticking often gives the same result as ticking once");
-    CHECK(stepped.hunger == single.hunger,
-          "hunger same for 1 tick as for 40");
+    CHECK(stepped.food == single.food,
+          "food same for 1 tick as for 40");
     CHECK(stepped.happiness == single.happiness,
           "happiness same for 1 tick as for 40");
-    CHECK(stepped.hunger_accum_ms == single.hunger_accum_ms,
+    CHECK(stepped.food_accum_ms == single.food_accum_ms,
           "leftover time is the same in both cases");
 }
 
@@ -83,11 +83,11 @@ static void test_clamping(void)
 {
     pet_t p;
     pet_init(&p, 0);
-    pet_tick(&p, 20000);        /* hunger 41, happiness 65 */
+    pet_tick(&p, 20000);        /* food 59, happiness 65 */
 
     section("Statistics stay inside [0, 100]");
-    pet_feed(&p, 5, 20000);     /* -60 hunger, which would go negative */
-    CHECK(p.hunger == PET_STAT_MIN, "over-feeding stops at 0, doesn't go negative");
+    pet_feed(&p, 5, 20000);     /* +60 food, which would go past 100 */
+    CHECK(p.food == PET_STAT_MAX, "over-feeding stops at 100");
     CHECK(p.happiness == 69, "feeding adds the happiness bonus");
 
     pet_play(&p, 21000);
@@ -104,16 +104,16 @@ static void test_feed_portion_clamping(void)
 
     section("Feed portion is clamped to [MIN, MAX]");
     pet_init(&p, 0);
-    pet_tick(&p, 20000);            /* hunger 41 */
+    pet_tick(&p, 20000);            /* food 59 */
     pet_feed(&p, 0, 20000);
-    CHECK(p.hunger == 41 - PET_FEED_HUNGER_PER_PORTION,
+    CHECK(p.food == 59 + PET_FEED_FOOD_PER_PORTION,
           "portion 0 is treated as the minimum");
 
     pet_init(&p, 0);
-    pet_tick(&p, 20000);            /* hunger 41 */
+    pet_tick(&p, 20000);            /* food 59 */
     pet_feed(&p, 99, 20000);
-    CHECK(p.hunger == PET_STAT_MIN,
-          "portion 99 is treated as the maximum and clamps at 0");
+    CHECK(p.food == PET_STAT_MAX,
+          "portion 99 is treated as the maximum and clamps at 100");
 }
 
 static void test_action_effects(void)
@@ -124,7 +124,7 @@ static void test_action_effects(void)
     pet_init(&p, 0);
     pet_play(&p, 1000);
     CHECK(p.happiness == PET_INIT_HAPPINESS + PET_PLAY_HAPPINESS_GAIN, "play raises happiness");
-    CHECK(p.hunger == PET_INIT_HUNGER + PET_PLAY_HUNGER_COST, "play costs hunger");
+    CHECK(p.food == PET_INIT_FOOD - PET_PLAY_FOOD_COST, "play costs food");
     CHECK(p.last_action == PET_ACTION_PLAY, "play is recorded as the last action");
     CHECK(p.action_count[PET_ACTION_PLAY] == 1, "play is counted");
 
@@ -134,6 +134,18 @@ static void test_action_effects(void)
     CHECK(p.action_count[PET_ACTION_CLEAN] == 1, "clean is counted");
 }
 
+static void test_play_on_empty_stomach(void)
+{
+    pet_t p;
+    pet_init(&p, 0);
+    section("Playing when nearly starved");
+    pet_tick(&p, 84000);          /* 70 units of food gone: 75 -> 5 */
+    CHECK(p.food == 5, "food is down to 5");
+    CHECK(pet_play(&p, 84000), "play is still accepted");
+    CHECK(p.food == PET_STAT_MIN, "play cannot push food below 0");
+    CHECK(p.state == PET_ALIVE, "the pet only starves on the next tick, not mid-action");
+}
+
 static void test_death_by_neglect(void)
 {
     pet_t p;
@@ -141,7 +153,7 @@ static void test_death_by_neglect(void)
     pet_tick(&p, 90000);         /* 75 units x 1200 ms = 90 s */
 
     section("Death from neglect");
-    CHECK(p.hunger == PET_STAT_MAX, "hunger reaches 100 after 90 s");
+    CHECK(p.food == PET_STAT_MIN, "food reaches 0 after 90 s");
     CHECK(p.state == PET_DEAD, "pet is dead");
     CHECK(!pet_is_interactive(&p), "a dead pet refuses interaction");
     CHECK(pet_mood(&p) == PET_MOOD_MISERABLE, "dead pet reports its worst mood");
@@ -155,28 +167,28 @@ static void test_runaway_by_feeding(void)
 
     pet_init(&p, 0);
 
-    /* Feed it enough to keep hunger down, so happiness is what runs out first.
+    /* Feed it enough to keep food up, so happiness is what runs out first.
        That's how the runaway ending is reached on purpose. */
     for (t = 1000; t <= 600000; t += 1000) {
         pet_tick(&p, t);
-        if (p.hunger >= 50) { pet_feed(&p, 5, t); }
+        if (p.food <= 50) { pet_feed(&p, 5, t); }
         if (p.state == PET_RUNAWAY) { ran_away = true; break; }
         if (p.state == PET_DEAD)    { break; }
     }
 
     section("Runaway when happiness is neglected");
-    printf("         reached at t = %u ms, hunger = %d, happiness = %d\n",
-           t, p.hunger, p.happiness);
+    printf("         reached at t = %u ms, food = %d, happiness = %d\n",
+           t, p.food, p.happiness);
     CHECK(ran_away, "pet runs away instead of starving when it's kept fed");
     CHECK(p.state == PET_RUNAWAY, "pet is in the runaway state");
     CHECK(p.happiness == PET_STAT_MIN, "happiness reached 0");
-    CHECK(p.hunger < PET_STAT_MAX, "pet did not starve");
+    CHECK(p.food > PET_STAT_MIN, "pet did not starve");
 
     section("Frozen after the end state");
     {
         pet_t frozen = p;
         pet_tick(&p, t + 300000);
-        CHECK(p.hunger == frozen.hunger && p.happiness == frozen.happiness,
+        CHECK(p.food == frozen.food && p.happiness == frozen.happiness,
               "statistics stop changing once the pet has run away");
         CHECK(pet_feed(&p, 5, t + 1000) == false, "feeding is refused");
         CHECK(pet_play(&p, t + 1000) == false, "playing is refused");
@@ -192,7 +204,7 @@ static void test_restart(void)
 
     section("Restart");
     pet_restart(&p, 95000);
-    CHECK(p.hunger == PET_INIT_HUNGER, "hunger goes back to the start");
+    CHECK(p.food == PET_INIT_FOOD, "food goes back to the start");
     CHECK(p.happiness == PET_INIT_HAPPINESS, "happiness goes back to the start");
     CHECK(p.state == PET_ALIVE, "pet is alive again");
     CHECK(pet_is_interactive(&p), "it accepts interaction again");
@@ -208,11 +220,11 @@ static void test_mood(void)
     pet_init(&p, 0);
     CHECK(pet_mood(&p) == PET_MOOD_DELIGHTED, "delighted at happiness 75");
 
-    pet_tick(&p, 40000);   /* happiness 55, hunger 58 */
+    pet_tick(&p, 40000);   /* happiness 55, food 42 */
     CHECK(pet_mood(&p) == PET_MOOD_CONTENT, "content in the middle band");
 
-    pet_tick(&p, 70000);   /* happiness 40, hunger 83 */
-    CHECK(pet_mood(&p) == PET_MOOD_HUNGRY, "hungry once hunger passes the threshold");
+    pet_tick(&p, 70000);   /* happiness 40, food 17 */
+    CHECK(pet_mood(&p) == PET_MOOD_HUNGRY, "hungry once food drops to the threshold");
 
     { pet_t p2; pet_init(&p2, 0); pet_tick(&p2, 110000);
       CHECK(pet_mood(&p2) == PET_MOOD_MISERABLE, "miserable once happiness drops low"); }
@@ -221,8 +233,8 @@ static void test_mood(void)
 int main(void)
 {
     printf("pet_core tests\n");
-    printf("rates: hunger +1/%u ms, happiness -1/%u ms, limits [%d, %d]\n",
-           PET_HUNGER_MS_PER_UNIT, PET_HAPPINESS_MS_PER_UNIT,
+    printf("rates: food -1/%u ms, happiness -1/%u ms, limits [%d, %d]\n",
+           PET_FOOD_MS_PER_UNIT, PET_HAPPINESS_MS_PER_UNIT,
            PET_STAT_MIN, PET_STAT_MAX);
 
     test_init();
@@ -231,6 +243,7 @@ int main(void)
     test_clamping();
     test_feed_portion_clamping();
     test_action_effects();
+    test_play_on_empty_stomach();
     test_death_by_neglect();
     test_runaway_by_feeding();
     test_restart();

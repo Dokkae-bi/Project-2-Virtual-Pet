@@ -48,7 +48,7 @@ static void test_tick_advances_both(void)
 
     section("Ticking drives the pet and the animation together");
     pet_ctl_tick(&c, 20000);
-    CHECK(c.pet.hunger == 41, "hunger evolved over 20 s");
+    CHECK(c.pet.food == 59, "food evolved over 20 s");
     CHECK(c.pet.happiness == 65, "happiness evolved over 20 s");
     CHECK(c.pet.age_ms == 20000, "the age was recorded");
 
@@ -64,8 +64,8 @@ static void test_each_action_changes_the_pet_and_the_animation(void)
     section("Feed");
     pet_ctl_init(&c, 0);
     CHECK(pet_ctl_action(&c, PET_ACTION_FEED, 2, 1000), "feeding is accepted");
-    CHECK(c.pet.hunger == PET_INIT_HUNGER - 2 * PET_FEED_HUNGER_PER_PORTION,
-          "hunger drops by the portion amount");
+    CHECK(c.pet.food == PET_INIT_FOOD + 2 * PET_FEED_FOOD_PER_PORTION,
+          "food rises by the portion amount");
     CHECK(c.pet.happiness == PET_INIT_HAPPINESS + PET_FEED_HAPPINESS_BONUS,
           "feeding is slightly cheering");
     CHECK(c.anim.id == PET_ANIM_FEED, "the feeding animation starts");
@@ -75,7 +75,7 @@ static void test_each_action_changes_the_pet_and_the_animation(void)
     CHECK(pet_ctl_action(&c, PET_ACTION_PLAY, 1, 1000), "playing is accepted");
     CHECK(c.pet.happiness == PET_INIT_HAPPINESS + PET_PLAY_HAPPINESS_GAIN,
           "happiness rises");
-    CHECK(c.pet.hunger == PET_INIT_HUNGER + PET_PLAY_HUNGER_COST,
+    CHECK(c.pet.food == PET_INIT_FOOD - PET_PLAY_FOOD_COST,
           "playing works up an appetite");
     CHECK(c.anim.id == PET_ANIM_PLAY, "the playing animation starts");
 
@@ -94,12 +94,12 @@ static void test_portion_is_passed_through_and_clamped(void)
     section("The analog input's portion reaches pet_feed and is clamped");
     pet_ctl_init(&c, 0);
     pet_ctl_action(&c, PET_ACTION_FEED, 0, 1000);
-    CHECK(c.pet.hunger == PET_INIT_HUNGER - PET_FEED_HUNGER_PER_PORTION,
+    CHECK(c.pet.food == PET_INIT_FOOD + PET_FEED_FOOD_PER_PORTION,
           "a portion of 0 is treated as the minimum");
 
     pet_ctl_init(&c, 0);
     pet_ctl_action(&c, PET_ACTION_FEED, 200, 1000);
-    CHECK(c.pet.hunger == PET_STAT_MIN, "a wild portion cannot push hunger negative");
+    CHECK(c.pet.food == PET_STAT_MAX, "a wild portion cannot push food past 100");
 }
 
 static void test_refused_actions_do_nothing(void)
@@ -115,7 +115,7 @@ static void test_refused_actions_do_nothing(void)
     CHECK(!pet_ctl_action(&c, PET_ACTION_FEED, 3, 90000), "feeding is refused");
     CHECK(!pet_ctl_action(&c, PET_ACTION_PLAY, 3, 90000), "playing is refused");
     CHECK(!pet_ctl_action(&c, PET_ACTION_CLEAN, 3, 90000), "cleaning is refused");
-    CHECK(c.pet.hunger == PET_STAT_MAX, "the refused actions left the pet unchanged");
+    CHECK(c.pet.food == PET_STAT_MIN, "the refused actions left the pet unchanged");
     CHECK(c.anim.id == PET_ANIM_IDLE,
           "no action animation was started for the refused actions");
 
@@ -152,7 +152,7 @@ static void test_restart(void)
 
     pet_ctl_restart(&c, 95000);
     CHECK(c.pet.state == PET_ALIVE, "the pet is alive again");
-    CHECK(c.pet.hunger == PET_INIT_HUNGER, "hunger is back to the start");
+    CHECK(c.pet.food == PET_INIT_FOOD, "food is back to the start");
     CHECK(c.anim.id == PET_ANIM_RESTART, "the re-forming animation plays");
     CHECK(pet_ctl_action(&c, PET_ACTION_PLAY, 1, 96000), "actions work again");
 }

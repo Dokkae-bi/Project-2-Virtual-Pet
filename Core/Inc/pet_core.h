@@ -17,42 +17,42 @@
 
 /* Both statistics are clamped to this closed range, so neither neglect nor
    over-feeding can push them outside it. */
-#define PET_STAT_MIN                    (0)     /* happiness floor / hunger floor */
-#define PET_STAT_MAX                    (100)   /* happiness ceiling / hunger cap */
+#define PET_STAT_MIN                    (0)     /* happiness floor / food floor */
+#define PET_STAT_MAX                    (100)   /* happiness ceiling / food cap */
 
 /* Evolution rates: one unit of change per this many milliseconds. These are the
    main tuning knobs for the game - lower values reach the crisis states sooner,
    which helps when showing death and runaway during a short presentation.
 
-   With these values a completely neglected pet starves in 90 s (25 -> 100 hunger
+   With these values a completely neglected pet starves in 90 s (75 -> 0 food
    at 1200 ms/unit) while its happiness is still falling, so neglect ends in
-   death. Feeding to keep hunger down makes happiness the limiting factor
+   death. Feeding to keep food up makes happiness the limiting factor
    instead, which is how the runaway ending gets reached. */
-#define PET_HUNGER_MS_PER_UNIT          1200u   /* +1 hunger    every 1.2 s */
+#define PET_FOOD_MS_PER_UNIT            1200u   /* -1 food      every 1.2 s */
 #define PET_HAPPINESS_MS_PER_UNIT       2000u   /* -1 happiness every 2.0 s */
 
 /* Action effects. */
 #define PET_FEED_PORTION_MIN            1u      /* smallest portion the ADC can pick */
 #define PET_FEED_PORTION_MAX            5u      /* largest portion */
-#define PET_FEED_HUNGER_PER_PORTION     12      /* hunger removed per portion unit */
+#define PET_FEED_FOOD_PER_PORTION       12      /* food added per portion unit */
 #define PET_FEED_HAPPINESS_BONUS        4       /* a good meal is a bit cheering */
 #define PET_PLAY_HAPPINESS_GAIN         22
-#define PET_PLAY_HUNGER_COST            9       /* playing works up an appetite */
+#define PET_PLAY_FOOD_COST              9       /* playing works up an appetite */
 #define PET_CLEAN_HAPPINESS_GAIN        14
 
 /* Starting figures, on power-up and after a restart. */
-#define PET_INIT_HUNGER                 25      /* slightly peckish at boot */
+#define PET_INIT_FOOD                   75      /* slightly peckish at boot */
 #define PET_INIT_HAPPINESS              75
 
 /* Mood thresholds, used to pick the idle sprite. */
 #define PET_MOOD_MISERABLE_AT_HAPPINESS 25
-#define PET_MOOD_HUNGRY_AT_HUNGER       70
+#define PET_MOOD_HUNGRY_AT_FOOD         30      /* food at or below this looks hungry */
 #define PET_MOOD_DELIGHTED_AT_HAPPINESS 75
 
 /* Life states. ALIVE is the only one where the pet accepts input. */
 typedef enum {
     PET_ALIVE = 0,
-    PET_DEAD,       /* hunger reached PET_STAT_MAX */
+    PET_DEAD,       /* food reached PET_STAT_MIN */
     PET_RUNAWAY     /* happiness reached PET_STAT_MIN */
 } pet_state_t;
 
@@ -76,14 +76,14 @@ typedef enum {
 /* Full behavioural state. Small and copyable, so in firmware it lives in one
    static instance with no dynamic allocation. */
 typedef struct {
-    int16_t      hunger;            /* 0 = fully fed,  PET_STAT_MAX = starving */
+    int16_t      food;              /* 0 = starving,   PET_STAT_MAX = full */
     int16_t      happiness;         /* 0 = runs away,  PET_STAT_MAX = delighted */
 
     pet_state_t  state;
 
     uint32_t     age_ms;            /* total simulated lifetime */
     uint32_t     last_tick_ms;      /* timestamp of the last pet_tick() */
-    uint32_t     hunger_accum_ms;   /* leftover time between calls */
+    uint32_t     food_accum_ms;     /* leftover time between calls */
     uint32_t     happiness_accum_ms;
 
     pet_action_t last_action;       /* most recent accepted action */

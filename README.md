@@ -35,12 +35,12 @@ over-feeding can push them outside it.
 
 | Stat | Range | Changes over time | Changed by |
 |---|---|---|---|
-| Hunger | 0–100 | **+1 every 1.2 s** | feeding (−12 per portion), play (+9) |
+| Food | 0–100 | **−1 every 1.2 s** | feeding (+12 per portion), play (−9) |
 | Happiness | 0–100 | **−1 every 2.0 s** | play (+22), clean (+14), feeding (+4) |
 
 | Outcome | Trigger | Screen / animation | Restart procedure |
 |---|---|---|---|
-| Death | hunger reaches 100 — **90 s** of total neglect from the initial 25 | `slime_dead`, collapse animation, loops | joystick CENTER |
+| Death | food reaches 0 — **90 s** of total neglect from the initial 75 | `slime_dead`, collapse animation, loops | joystick CENTER |
 | Runaway | happiness reaches 0 — reached by *feeding enough to stay alive* while happiness drains | `slime_runaway`, drifting animation, loops | joystick CENTER |
 
 Both are terminal: the pet stops accepting actions and its statistics freeze until
@@ -57,8 +57,8 @@ joystick. Selecting one plays its animation and applies its effect immediately.
 
 | Action | Physical input | State effect | Animation |
 |---|---|---|---|
-| **Feed** (required) | menu item; the **potentiometer** selects the portion (1–5) | hunger −12 × portion, happiness +4 | `slime_eating` plus a squashing transform |
-| **Play** | menu item, or **shake the MPU-6050** | happiness +22, hunger +9 | jump transform of the mood sprite |
+| **Feed** (required) | menu item; the **potentiometer** selects the portion (1–5) | food +12 × portion, happiness +4 | `slime_eating` plus a squashing transform |
+| **Play** | menu item, or **shake the MPU-6050** | happiness +22, food −9 | jump transform of the mood sprite |
 | **Clean** | menu item | happiness +14 | wobble transform of the mood sprite |
 | Idle | — | passive decay | 4-frame breathing loop; the mood picks the sprite |
 
@@ -185,7 +185,7 @@ How it works:
   band edge before the portion changes, so a knob resting on an edge can't make
   the menu flicker. The tuning is `#define`d in `Core/Inc/pet_pot.h`.
 - The portion is shown beside the Feed row and is exactly what Feed uses:
-  hunger −12 × portion.
+  food +12 × portion.
 - **Unavailable input:** a failed conversion keeps the last portion, so Feed
   still works. A disconnected wiper leaves `PA3` floating and reads as a random
   portion — if the number wanders on its own, check the wiper wire.
@@ -364,17 +364,17 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 
 | Suite | Checks |
 |---|---|
-| `test_pet_core` | 46 |
+| `test_pet_core` | 50 |
 | `test_pet_anim` | 54 |
 | `test_pet_render` | 38 |
 | `test_pet_ui` | 60 |
 | `test_pet_view` | 27 |
-| `test_pet_hud` | 39 |
+| `test_pet_hud` | 40 |
 | `test_pet_ctl` | 39 |
 | `test_pet_shake` | 16 |
 | `test_mpu6050_regs` | 11 |
 | `test_pet_pot` | 17 |
-| **Total** | **347** |
+| **Total** | **352** |
 
 ---
 

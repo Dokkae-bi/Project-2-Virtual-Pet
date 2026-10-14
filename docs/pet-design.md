@@ -37,9 +37,9 @@ Six visual states, mapped one-to-one onto the model states in `pet_core.h`.
 |---|---|---|---|---|---|
 | `PET_MOOD_DELIGHTED` | happiness ≥ 75 | bright saturated teal | stretched taller | happy upward-arc eyes, open smile | ✅ have |
 | `PET_MOOD_CONTENT` | default | base teal | neutral rounded dome | calm open eyes, small smile | ✅ have |
-| `PET_MOOD_HUNGRY` | hunger ≥ 70 (happiness still OK) | pale, slightly washed out | gentle sag | flat wobbly mouth, eyes a little smaller | ✅ have |
+| `PET_MOOD_HUNGRY` | food ≤ 30 (happiness still OK) | pale, slightly washed out | gentle sag | flat wobbly mouth, eyes a little smaller | ✅ have |
 | `PET_MOOD_MISERABLE` | happiness ≤ 25 | dull grey-teal | flattened, sagging wide | half-closed downcast eyes, downturned mouth | ✅ have |
-| `PET_DEAD` | hunger reaches 100 | drained grey | collapsed to a flat puddle | eyes closed, no mouth | ✅ have |
+| `PET_DEAD` | food reaches 0 | drained grey | collapsed to a flat puddle | eyes closed, no mouth | ✅ have |
 | `PET_RUNAWAY` | happiness reaches 0 | fading, low opacity look | sliding off the edge of the stage | back turned / gone | ✅ have |
 
 `PET_MOOD_HUNGRY` is deliberately **distinct from** `PET_MOOD_MISERABLE`: a pet can
@@ -49,8 +49,8 @@ be well-loved but starving, and the player must be able to tell those apart.
 
 | Action | Physical input | Model effect | Animation | Artwork |
 |---|---|---|---|---|
-| **FEED** *(required)* | menu item; **Potentiometer → ADC** selects portion 1–5 | hunger −12×portion, happiness +4 | squashes down and spreads as the berry goes in | `slime_eating` + scaling |
-| **PLAY** | menu item | happiness +22, hunger +9 | jump: stretches upward while rising | mood sprite + scaling |
+| **FEED** *(required)* | menu item; **Potentiometer → ADC** selects portion 1–5 | food +12×portion, happiness +4 | squashes down and spreads as the berry goes in | `slime_eating` + scaling |
+| **PLAY** | menu item | happiness +22, food −9 | jump: stretches upward while rising | mood sprite + scaling |
 | **CLEAN** | menu item | happiness +14 | wobble either side of rest | mood sprite + scaling |
 | Menu navigation | GFX01M2 joystick | select / activate / restart | — | code only |
 | Mood voice | **PWM buzzer** | tone per mood, chirp per action | — | code only |
@@ -109,7 +109,7 @@ superseded where the two disagree.
 | Region | Extent | Contents | Redraw strategy |
 |---|---|---|---|
 | Stage | y 0–179 | the slime, centred, 64×64 or 96×96 | blit the sprite region only |
-| Hunger meter | y 184–196 | 160×12 bar + label | redraw **changed segment only** |
+| Food meter | y 184–196 | 160×12 bar + label | redraw **changed segment only** |
 | Happiness meter | y 200–212 | 160×12 bar + label | redraw **changed segment only** |
 | Menu | y 220–319 | three action items, selected one highlighted | redraw on selection change only |
 
@@ -164,7 +164,7 @@ of flash is left unused.
 
 | Component | Status |
 |---|---|
-| Pet behaviour model (`Core/Src/pet_core.c`) | ✅ implemented, 46 host checks |
+| Pet behaviour model (`Core/Src/pet_core.c`) | ✅ implemented, 50 host checks |
 | Animation sequencer (`Core/Src/pet_anim.c`) | ✅ implemented, 54 host checks |
 | State → animation mapping (`pet_anim_select`) | ✅ implemented |
 | Sprite scaler / frame builder (`Core/Src/pet_render.c`) | ✅ implemented, 38 host checks |
@@ -173,7 +173,7 @@ of flash is left unused.
 | Display driver sprite blit (`ILI9341_DrawBitmap`) | ✅ implemented |
 | PNG → RGB565 converter (`tools/png_to_rgb565.py`) | ✅ implemented |
 | Artwork: all 7 states drawn and converted | ✅ done |
-| HUD layout and meter maths (`Core/Src/pet_hud.c`) | ✅ implemented, 39 host checks |
+| HUD layout and meter maths (`Core/Src/pet_hud.c`) | ✅ implemented, 40 host checks |
 | Action handling (`Core/Src/pet_ctl.c`) | ✅ implemented, 39 host checks |
 | Screen drawing (`Core/Src/pet_screen.c`) | ✅ implemented |
 | HUD icons (berry, heart) | ✅ drawn and converted |
@@ -183,5 +183,5 @@ of flash is left unused.
 | Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, 17 host checks — not yet on hardware |
 | Verified on real hardware | ❌ blocked on the unsoldered headers |
 
-**347 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
+**352 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
 still outstanding.

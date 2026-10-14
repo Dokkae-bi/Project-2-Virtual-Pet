@@ -154,7 +154,7 @@ static void test_selection(void)
       pet_init(&r, 0);
       for (t = 1000; t <= 600000; t += 1000) {
           pet_tick(&r, t);
-          if (r.hunger >= 50) { pet_feed(&r, 5, t); }
+          if (r.food <= 50) { pet_feed(&r, 5, t); }
           if (r.state == PET_RUNAWAY) { ran = true; break; }
           if (r.state == PET_DEAD) { break; }
       }
