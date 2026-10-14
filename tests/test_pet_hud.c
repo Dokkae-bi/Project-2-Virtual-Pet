@@ -52,21 +52,22 @@ static void test_fill_maths(void)
 
 static void test_colour_bands(void)
 {
-    section("Hunger is bad when high");
-    CHECK(pet_hud_meter_color(PET_METER_HUNGER, 0) == PET_HUD_COL_GOOD,   "hunger 0 is healthy");
-    CHECK(pet_hud_meter_color(PET_METER_HUNGER, 30) == PET_HUD_COL_GOOD,  "hunger 30 is still healthy");
-    CHECK(pet_hud_meter_color(PET_METER_HUNGER, 31) == PET_HUD_COL_WARN,  "hunger 31 turns marginal");
-    CHECK(pet_hud_meter_color(PET_METER_HUNGER, 70) == PET_HUD_COL_WARN,  "hunger 70 is still marginal");
-    CHECK(pet_hud_meter_color(PET_METER_HUNGER, 71) == PET_HUD_COL_BAD,   "hunger 71 is critical");
-    CHECK(pet_hud_meter_color(PET_METER_HUNGER, 100) == PET_HUD_COL_BAD,  "hunger 100 is critical");
+    section("Food runs the same way as happiness: low is bad");
+    CHECK(pet_hud_meter_color(100) == PET_HUD_COL_GOOD, "food 100 is healthy");
+    CHECK(pet_hud_meter_color(70)  == PET_HUD_COL_GOOD, "food 70 is still healthy");
+    CHECK(pet_hud_meter_color(69)  == PET_HUD_COL_WARN, "food 69 turns marginal");
+    CHECK(pet_hud_meter_color(30)  == PET_HUD_COL_WARN, "food 30 is still marginal");
+    CHECK(pet_hud_meter_color(29)  == PET_HUD_COL_BAD,  "food 29 is critical");
+    CHECK(pet_hud_meter_color(0)   == PET_HUD_COL_BAD,  "food 0 is critical");
+    CHECK(pet_hud_meter_fill_px(0, PET_HUD_TRACK_W) == 0u, "an empty stomach is an empty bar");
 
     section("Happiness is bad when low");
-    CHECK(pet_hud_meter_color(PET_METER_HAPPINESS, 100) == PET_HUD_COL_GOOD, "happiness 100 is healthy");
-    CHECK(pet_hud_meter_color(PET_METER_HAPPINESS, 70) == PET_HUD_COL_GOOD,  "happiness 70 is healthy");
-    CHECK(pet_hud_meter_color(PET_METER_HAPPINESS, 69) == PET_HUD_COL_WARN,  "happiness 69 turns marginal");
-    CHECK(pet_hud_meter_color(PET_METER_HAPPINESS, 30) == PET_HUD_COL_WARN,  "happiness 30 is still marginal");
-    CHECK(pet_hud_meter_color(PET_METER_HAPPINESS, 29) == PET_HUD_COL_BAD,   "happiness 29 is critical");
-    CHECK(pet_hud_meter_color(PET_METER_HAPPINESS, 0) == PET_HUD_COL_BAD,    "happiness 0 is critical");
+    CHECK(pet_hud_meter_color(100) == PET_HUD_COL_GOOD, "happiness 100 is healthy");
+    CHECK(pet_hud_meter_color(70) == PET_HUD_COL_GOOD,  "happiness 70 is healthy");
+    CHECK(pet_hud_meter_color(69) == PET_HUD_COL_WARN,  "happiness 69 turns marginal");
+    CHECK(pet_hud_meter_color(30) == PET_HUD_COL_WARN,  "happiness 30 is still marginal");
+    CHECK(pet_hud_meter_color(29) == PET_HUD_COL_BAD,   "happiness 29 is critical");
+    CHECK(pet_hud_meter_color(0) == PET_HUD_COL_BAD,    "happiness 0 is critical");
 
     section("The three bands are actually different colours");
     CHECK(PET_HUD_COL_GOOD != PET_HUD_COL_WARN, "good and marginal differ");
@@ -94,14 +95,14 @@ static void test_menu_rows(void)
 
 static void test_layout_fits(void)
 {
-    const uint16_t hunger_bot = (uint16_t)(PET_HUD_HUNGER_ROW_Y + PET_HUD_ICON_SIZE);
+    const uint16_t food_bot = (uint16_t)(PET_HUD_FOOD_ROW_Y + PET_HUD_ICON_SIZE);
     const uint16_t happy_top  = PET_HUD_HAPPINESS_ROW_Y;
     const uint16_t happy_bot  = (uint16_t)(PET_HUD_HAPPINESS_ROW_Y + PET_HUD_ICON_SIZE);
     const uint16_t menu_bot   = (uint16_t)(PET_HUD_MENU_Y +
                                            pet_ui_item_count() * PET_HUD_MENU_ROW_H);
 
     section("Nothing overlaps and nothing runs off the panel");
-    CHECK(happy_top >= hunger_bot, "the happiness row starts below the hunger row");
+    CHECK(happy_top >= food_bot, "the happiness row starts below the food row");
     CHECK(PET_HUD_MENU_Y >= happy_bot, "the menu starts below the meters");
     CHECK(menu_bot <= PET_HUD_SCREEN_H, "the last menu row fits on the panel");
     CHECK(PET_HUD_TRACK_X + PET_HUD_TRACK_W <= PET_HUD_SCREEN_W,
@@ -116,8 +117,8 @@ static void test_layout_fits(void)
     section("The slime sits centred in the stage, clear of the meters");
     CHECK(PET_HUD_SPRITE_X == (PET_HUD_SCREEN_W - PET_HUD_SPRITE_W) / 2,
           "the sprite is horizontally centred");
-    CHECK(PET_HUD_SPRITE_Y + PET_HUD_SPRITE_H <= PET_HUD_HUNGER_ROW_Y,
-          "the sprite does not reach down into the hunger row");
+    CHECK(PET_HUD_SPRITE_Y + PET_HUD_SPRITE_H <= PET_HUD_FOOD_ROW_Y,
+          "the sprite does not reach down into the food row");
 }
 
 static void test_flash_cost(void)

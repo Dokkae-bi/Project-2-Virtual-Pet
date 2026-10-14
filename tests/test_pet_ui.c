@@ -166,7 +166,7 @@ static void test_terminal_pet_locks_the_menu(void)
       pet_init(&rp, 0);
       for (t = 1000; t <= 900000; t += 1000) {
           pet_tick(&rp, t);
-          if (rp.hunger >= 50) { pet_feed(&rp, 5, t); }
+          if (rp.food <= 50) { pet_feed(&rp, 5, t); }
           if (rp.state == PET_RUNAWAY) { ran = true; break; }
           if (rp.state == PET_DEAD) { break; }
       }

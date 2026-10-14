@@ -50,7 +50,7 @@ void pet_init(pet_t *pet, uint32_t now_ms)
     /* Clear the whole struct first so no field is left undefined. */
     *pet = (pet_t){0};
 
-    pet->hunger       = PET_INIT_HUNGER;
+    pet->food         = PET_INIT_FOOD;
     pet->happiness    = PET_INIT_HAPPINESS;
     pet->state        = PET_ALIVE;
     pet->last_action  = PET_ACTION_NONE;
@@ -84,15 +84,15 @@ void pet_tick(pet_t *pet, uint32_t now_ms)
 
     pet->age_ms += dt;
 
-    advance_by_time(&pet->hunger,    &pet->hunger_accum_ms,    dt,
-                    PET_HUNGER_MS_PER_UNIT,    +1);
+    advance_by_time(&pet->food,      &pet->food_accum_ms,      dt,
+                    PET_FOOD_MS_PER_UNIT,      -1);
     advance_by_time(&pet->happiness, &pet->happiness_accum_ms, dt,
                     PET_HAPPINESS_MS_PER_UNIT, -1);
 
-    /* Check the terminal conditions after updating the statistics. Hunger is
+    /* Check the terminal conditions after updating the statistics. Food is
        tested first, so a pet that hits both limits on the same tick counts as
        having starved. */
-    if (pet->hunger >= PET_STAT_MAX) {
+    if (pet->food <= PET_STAT_MIN) {
         pet->state = PET_DEAD;
     } else if (pet->happiness <= PET_STAT_MIN) {
         pet->state = PET_RUNAWAY;
@@ -123,7 +123,7 @@ bool pet_feed(pet_t *pet, uint8_t portion, uint32_t now_ms)
     if (portion < PET_FEED_PORTION_MIN) { portion = PET_FEED_PORTION_MIN; }
     if (portion > PET_FEED_PORTION_MAX) { portion = PET_FEED_PORTION_MAX; }
 
-    apply_delta(&pet->hunger,    -(int32_t)portion * PET_FEED_HUNGER_PER_PORTION);
+    apply_delta(&pet->food,      +(int32_t)portion * PET_FEED_FOOD_PER_PORTION);
     apply_delta(&pet->happiness, +PET_FEED_HAPPINESS_BONUS);
     return true;
 }
@@ -133,7 +133,7 @@ bool pet_play(pet_t *pet, uint32_t now_ms)
     if (!begin_action(pet, PET_ACTION_PLAY, now_ms)) { return false; }
 
     apply_delta(&pet->happiness, +PET_PLAY_HAPPINESS_GAIN);
-    apply_delta(&pet->hunger,    +PET_PLAY_HUNGER_COST);
+    apply_delta(&pet->food,      -PET_PLAY_FOOD_COST);
     return true;
 }
 
@@ -154,7 +154,7 @@ pet_mood_t pet_mood(const pet_t *pet)
     if (!pet_is_interactive(pet)) { return PET_MOOD_MISERABLE; }
 
     if (pet->happiness <= PET_MOOD_MISERABLE_AT_HAPPINESS) { return PET_MOOD_MISERABLE; }
-    if (pet->hunger    >= PET_MOOD_HUNGRY_AT_HUNGER)       { return PET_MOOD_HUNGRY;    }
+    if (pet->food      <= PET_MOOD_HUNGRY_AT_FOOD)          { return PET_MOOD_HUNGRY;    }
     if (pet->happiness >= PET_MOOD_DELIGHTED_AT_HAPPINESS) { return PET_MOOD_DELIGHTED; }
     return PET_MOOD_CONTENT;
 }

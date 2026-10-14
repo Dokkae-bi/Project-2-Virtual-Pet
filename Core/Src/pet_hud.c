@@ -14,17 +14,10 @@ uint16_t pet_hud_meter_fill_px(int16_t value, uint16_t track_w)
     return (uint16_t)(((uint32_t)value * track_w) / PET_STAT_MAX);
 }
 
-uint16_t pet_hud_meter_color(pet_meter_t which, int16_t value)
+uint16_t pet_hud_meter_color(int16_t value)
 {
     if (value < PET_STAT_MIN) { value = PET_STAT_MIN; }
     if (value > PET_STAT_MAX) { value = PET_STAT_MAX; }
-
-    if (which == PET_METER_HUNGER) {
-        /* High hunger is bad, so the bands are the other way round. */
-        if (value <= PET_HUD_BAD_AT)  { return PET_HUD_COL_GOOD; }
-        if (value <= PET_HUD_GOOD_AT) { return PET_HUD_COL_WARN; }
-        return PET_HUD_COL_BAD;
-    }
 
     if (value >= PET_HUD_GOOD_AT) { return PET_HUD_COL_GOOD; }
     if (value >= PET_HUD_BAD_AT)  { return PET_HUD_COL_WARN; }

@@ -19,7 +19,7 @@ static uint16_t g_frame[PET_HUD_SPRITE_W * PET_HUD_SPRITE_H];
 
 /* What the panel is currently showing, so we only push changes. */
 static struct {
-    int16_t       hunger;
+    int16_t       food;
     int16_t       happiness;
     uint8_t       cursor;
     uint8_t       portion;
@@ -34,8 +34,7 @@ static struct {
 /* X where the numeric readout starts, just right of the bar. */
 #define READOUT_X  (PET_HUD_TRACK_X + PET_HUD_TRACK_W + 4u)
 
-static void draw_meter(uint16_t row_y, const uint16_t *icon,
-                       pet_meter_t which, int16_t value)
+static void draw_meter(uint16_t row_y, const uint16_t *icon, int16_t value)
 {
     char      text[8];
     const uint16_t bar_y = (uint16_t)(row_y + PET_HUD_TRACK_DY);
@@ -50,7 +49,7 @@ static void draw_meter(uint16_t row_y, const uint16_t *icon,
                      PET_HUD_COL_TRACK);
     if (fill > 0u) {
         ILI9341_FillRect(PET_HUD_TRACK_X, bar_y, fill, PET_HUD_TRACK_H,
-                         pet_hud_meter_color(which, value));
+                         pet_hud_meter_color(value));
     }
 
     (void)snprintf(text, sizeof(text), "%d", (int)value);
@@ -151,14 +150,13 @@ void pet_screen_update(const pet_t *pet, const pet_anim_t *anim, const pet_ui_t 
         g_drawn.mood  = mood;
     }
 
-    if (!g_drawn.valid || (pet->hunger != g_drawn.hunger)) {
-        draw_meter(PET_HUD_HUNGER_ROW_Y, icon_hunger, PET_METER_HUNGER, pet->hunger);
-        g_drawn.hunger = pet->hunger;
+    if (!g_drawn.valid || (pet->food != g_drawn.food)) {
+        draw_meter(PET_HUD_FOOD_ROW_Y, icon_hunger, pet->food);
+        g_drawn.food = pet->food;
     }
 
     if (!g_drawn.valid || (pet->happiness != g_drawn.happiness)) {
-        draw_meter(PET_HUD_HAPPINESS_ROW_Y, icon_happy, PET_METER_HAPPINESS,
-                   pet->happiness);
+        draw_meter(PET_HUD_HAPPINESS_ROW_Y, icon_happy, pet->happiness);
         g_drawn.happiness = pet->happiness;
     }
 

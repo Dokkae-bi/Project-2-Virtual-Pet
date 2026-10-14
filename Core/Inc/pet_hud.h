@@ -34,7 +34,7 @@
 
 #define PET_HUD_ICON_SIZE       24u
 #define PET_HUD_ICON_X          8u
-#define PET_HUD_HUNGER_ROW_Y    184u
+#define PET_HUD_FOOD_ROW_Y      184u
 #define PET_HUD_HAPPINESS_ROW_Y 214u
 
 /* The bar track sits slightly lower than the icon so the two line up visually. */
@@ -50,13 +50,6 @@
 #define PET_HUD_MENU_W          200u
 #define PET_HUD_MENU_ROW_H      24u
 
-/* Which statistic a meter is showing. Hunger and happiness are opposites: a
- * high hunger is bad, a high happiness is good. */
-typedef enum {
-    PET_METER_HUNGER = 0,
-    PET_METER_HAPPINESS
-} pet_meter_t;
-
 /*
  * Meter colours as RGB565. The first two are already in the project palette in
  * docs/pet-design.md; the red is new and only used for the critical band.
@@ -70,7 +63,7 @@ typedef enum {
 #define PET_HUD_COL_TEXT        0xD7FEu   /* #D6FFF6  near-white */
 #define PET_HUD_COL_SELECTED    0x2C70u   /* #2A8C80  highlighted menu row */
 
-/* Band edges. Happiness counts up towards good, hunger counts up towards bad. */
+/* Band edges. Both meters count up towards good. */
 #define PET_HUD_GOOD_AT         70
 #define PET_HUD_BAD_AT          30
 
@@ -81,10 +74,10 @@ typedef enum {
 uint16_t pet_hud_meter_fill_px(int16_t value, uint16_t track_w);
 
 /*
- * Colour for a meter, taking into account that hunger and happiness run in
- * opposite directions.
+ * Colour for a meter: teal at PET_HUD_GOOD_AT and above, red below
+ * PET_HUD_BAD_AT, amber in between. Out of range values are clamped.
  */
-uint16_t pet_hud_meter_color(pet_meter_t which, int16_t value);
+uint16_t pet_hud_meter_color(int16_t value);
 
 /* Top edge of menu row `index`. Out of range wraps, so it can't go off screen. */
 uint16_t pet_hud_menu_row_y(uint8_t index);
