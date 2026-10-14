@@ -22,6 +22,10 @@
 /* Call once after ILI9341_Init(). Clears the panel and draws everything. */
 void pet_screen_init(const pet_t *pet, const pet_anim_t *anim, const pet_ui_t *ui);
 
+/* Where the slime's left edge is drawn. Takes effect on the next update; clamped
+   so the sprite stays on the panel. */
+void pet_screen_set_pet_x(int16_t x);
+
 /* Redraw whatever has changed since the last call. Safe to call every pass. */
 void pet_screen_update(const pet_t *pet, const pet_anim_t *anim, const pet_ui_t *ui);
 

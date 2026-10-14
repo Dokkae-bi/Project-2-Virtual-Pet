@@ -56,6 +56,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_ctl.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_screen.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_shake.c
+    ${CMAKE_SOURCE_DIR}/Core/Src/pet_tilt.c
     ${CMAKE_SOURCE_DIR}/Core/Src/mpu6050_regs.c
     ${CMAKE_SOURCE_DIR}/Core/Src/mpu6050.c
     ${CMAKE_SOURCE_DIR}/Core/Src/pet_pot.c

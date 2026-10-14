@@ -41,6 +41,7 @@
 #include "pet_ui.h"
 #include "pet_screen.h"
 #include "pet_shake.h"
+#include "pet_tilt.h"
 #include "mpu6050.h"
 #include "pet_pot.h"
 /* USER CODE END Includes */
@@ -78,6 +79,12 @@ static pet_shake_t g_shake;
 static bool        g_shake_online   = false;
 static uint32_t    g_shake_next_ms  = 0u;
 static uint32_t    g_shake_awake_ms = 0u;
+
+/* Tilting the same sensor slides the slime along the stage. The poll leaves its
+   latest X reading here; the main loop uses it once. */
+static pet_tilt_t  g_tilt;
+static int16_t     g_tilt_ax    = 0;
+static bool        g_tilt_fresh = false;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -203,6 +210,8 @@ static bool Shake_Poll(uint32_t now)
   }
 
   g_shake_next_ms = now + SHAKE_SAMPLE_MS;
+  g_tilt_ax       = accel[0];
+  g_tilt_fresh    = true;
   return pet_shake_update(&g_shake, accel[0], accel[1], accel[2], now);
 }
 
@@ -444,6 +453,7 @@ int main(void)
   pet_pot_init(&g_pot);
 
   pet_ctl_init(&g_pet, HAL_GetTick());
+  pet_tilt_init(&g_tilt, HAL_GetTick());
   pet_ui_init(&g_ui);
   pet_ui_set_portion(&g_ui, g_portion);
   pet_screen_init(&g_pet.pet, &g_pet.anim, &g_ui);
@@ -471,6 +481,8 @@ int main(void)
     if (result.restart)
     {
       pet_ctl_restart(&g_pet, now);
+      pet_tilt_init(&g_tilt, now);
+      pet_screen_set_pet_x(g_tilt.x);
     }
     else if (result.action != PET_ACTION_NONE)
     {
@@ -484,6 +496,19 @@ int main(void)
     if (Shake_Poll(now) && (pet_ui_screen(&g_ui) == PET_SCREEN_PET))
     {
       (void)pet_ctl_action(&g_pet, PET_ACTION_PLAY, 1u, now);
+    }
+
+    /* Tilt slides the slime, but only on the pet screen and only while it is
+       alive, so it stays put behind the menu and where it died. A missing
+       sensor never sets g_tilt_fresh, so the slime simply stops. */
+    if (g_tilt_fresh)
+    {
+      g_tilt_fresh = false;
+      if ((pet_ui_screen(&g_ui) == PET_SCREEN_PET) && (g_pet.pet.state == PET_ALIVE) &&
+          pet_tilt_update(&g_tilt, g_tilt_ax, now))
+      {
+        pet_screen_set_pet_x(g_tilt.x);
+      }
     }
 
     pet_screen_update(&g_pet.pet, &g_pet.anim, &g_ui);

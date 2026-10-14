@@ -19,7 +19,11 @@
 static uint16_t g_frame[PET_HUD_SPRITE_W * PET_HUD_SPRITE_H];
 
 /* What the panel is currently showing, so we only push changes. */
+/* Where the slime is, and where it was last drawn. */
+static int16_t g_pet_x = (int16_t)PET_HUD_SPRITE_X;
+
 static struct {
+    int16_t       pet_x;
     uint32_t      day;
     uint8_t       hour;
     int16_t       food;
@@ -126,11 +130,36 @@ static void draw_age(const pet_t *pet)
                        PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
 }
 
+/* Blank the strip the sprite has just slid off, so it leaves no trail. The new
+   blit covers the rest of the old position. */
+static void erase_trail(int16_t from_x, int16_t to_x)
+{
+    if (to_x > from_x) {
+        const uint16_t w = (uint16_t)(to_x - from_x);
+        ILI9341_FillRect((uint16_t)from_x, PET_HUD_SPRITE_Y, w, PET_HUD_SPRITE_H,
+                         PET_HUD_COL_PANEL);
+    } else if (to_x < from_x) {
+        const uint16_t w = (uint16_t)(from_x - to_x);
+        ILI9341_FillRect((uint16_t)(to_x + (int16_t)PET_HUD_SPRITE_W), PET_HUD_SPRITE_Y,
+                         w, PET_HUD_SPRITE_H, PET_HUD_COL_PANEL);
+    }
+}
+
 static void draw_pet(const pet_t *pet, const pet_anim_t *anim)
 {
     pet_view_compose_stage(g_frame, PET_HUD_SPRITE_W, PET_HUD_SPRITE_H, pet, anim);
-    ILI9341_DrawBitmap(PET_HUD_SPRITE_X, PET_HUD_SPRITE_Y,
+    if (g_drawn.valid && (g_pet_x != g_drawn.pet_x)) {
+        erase_trail(g_drawn.pet_x, g_pet_x);
+    }
+    ILI9341_DrawBitmap((uint16_t)g_pet_x, PET_HUD_SPRITE_Y,
                        PET_HUD_SPRITE_W, PET_HUD_SPRITE_H, g_frame);
+    g_drawn.pet_x = g_pet_x;
+}
+
+void pet_screen_set_pet_x(int16_t x)
+{
+    const int16_t max = (int16_t)(PET_HUD_SCREEN_W - PET_HUD_SPRITE_W);
+    g_pet_x = (x < 0) ? 0 : ((x > max) ? max : x);
 }
 
 void pet_screen_init(const pet_t *pet, const pet_anim_t *anim, const pet_ui_t *ui)
@@ -155,11 +184,13 @@ void pet_screen_update(const pet_t *pet, const pet_anim_t *anim, const pet_ui_t 
     const uint8_t       frame   = pet_view_frame(anim);
     const pet_mood_t    mood    = pet_mood(pet);
 
-    /* The pet: redraw when the animation, its frame or the mood changes. At
+    /* The pet: redraw when the animation, its frame, the mood or its position
+       changes. At
        37 ms a blit this is the most expensive thing here, so it is worth not
        doing twice. */
     if (!g_drawn.valid || (showing != g_drawn.anim) ||
-        (frame != g_drawn.frame) || (mood != g_drawn.mood)) {
+        (frame != g_drawn.frame) || (mood != g_drawn.mood) ||
+        (g_pet_x != g_drawn.pet_x)) {
         draw_pet(pet, anim);
         g_drawn.anim  = showing;
         g_drawn.frame = frame;

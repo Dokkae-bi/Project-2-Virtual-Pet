@@ -6,7 +6,7 @@ Tamagotchi-style virtual pet running on a **NUCLEO-L496ZG-P** with an
 > **Status:** **the pet runs.** `main.c` starts it, the joystick drives the menu,
 > and the sprite, both meters and the menu are drawn on the panel. Shaking the
 > MPU-6050 (I2C) plays with the pet, and a potentiometer (ADC) sets how much it
-> eats. 400 host checks pass with no board attached. What's left is the hardware
+> eats. 427 host checks pass with no board attached. What's left is the hardware
 > verification — **see
 > [`TODO.md`](TODO.md)**.
 
@@ -163,6 +163,12 @@ How it works:
 - A shake triggers **Play** through `pet_ctl_action()`, exactly like the menu —
   only on the pet screen, never behind an open menu. A dead or runaway pet
   refuses it.
+- **Tilting slides the slime** left and right along the stage. Inside a dead zone
+  of about 15° it stays put; beyond that it moves every 40 ms by 1–8 px, faster
+  the further the tilt, and stops at the screen edges. Levelling the board stops it
+  where it is; it does not drift back. Only on the pet screen and while the pet is
+  alive. All `#define`s in `Core/Inc/pet_tilt.h`; **if the slime goes the wrong way,
+  flip `PET_TILT_DIR`**.
 - **Missing or unplugged sensor:** the pet keeps running without it, `LD2` turns
   off, and the sensor is looked for again once a second, so plugging it back in
   recovers without a reset. Every failure also frees the bus (nine SCL pulses and
@@ -242,6 +248,7 @@ VirtualPet/
 │   │   ├── pet_ctl.h           applies an action to the pet and its animation
 │   │   ├── pet_screen.h        drawing the screen (the only HAL-facing pet module)
 │   │   ├── pet_shake.h         shake detection from accelerometer samples
+│   │   ├── pet_tilt.h          tilt of the sensor → slime position
 │   │   ├── mpu6050_regs.h      MPU-6050 register map + byte decoding (no HAL)
 │   │   ├── mpu6050.h           MPU-6050 I2C driver
 │   │   ├── pet_pot.h           potentiometer reading → feeding portion
@@ -257,7 +264,7 @@ VirtualPet/
 ├── Middlewares/                ST USB host library (compiled, NOT initialised)
 ├── USB_HOST/                   USB host application (unused — see PA9 warning)
 ├── sprites/                    generated RGB565 assets + preview PNGs
-├── tests/                      400 host checks, run on a PC with no board
+├── tests/                      427 host checks, run on a PC with no board
 ├── tools/
 │   └── png_to_rgb565.py        artwork → RGB565 converter
 └── docs/
@@ -389,7 +396,8 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 | `test_mpu6050_regs` | 11 |
 | `test_pet_pot` | 17 |
 | `test_ui_text` | 26 |
-| **Total** | **400** |
+| `test_pet_tilt` | 27 |
+| **Total** | **427** |
 
 ---
 
