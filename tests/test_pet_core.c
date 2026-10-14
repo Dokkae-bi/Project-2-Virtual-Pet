@@ -134,6 +134,38 @@ static void test_action_effects(void)
     CHECK(p.action_count[PET_ACTION_CLEAN] == 1, "clean is counted");
 }
 
+static void test_age_clock(void)
+{
+    pet_t p;
+    pet_init(&p, 0);
+    section("Age clock: 1 real minute is 1 game hour, 24 hours a day");
+    CHECK(pet_age_day(&p) == 1 && pet_age_hour(&p) == 0, "a new pet is Day 1, 00h");
+
+    pet_tick(&p, 59999);
+    CHECK(pet_age_day(&p) == 1 && pet_age_hour(&p) == 0, "59.999 s is still hour 0");
+    pet_tick(&p, 60000);
+    CHECK(pet_age_day(&p) == 1 && pet_age_hour(&p) == 1, "60 s is hour 1");
+
+    pet_init(&p, 0);
+    p.age_ms = 23u * PET_MS_PER_GAME_HOUR + 59999u;
+    CHECK(pet_age_day(&p) == 1 && pet_age_hour(&p) == 23, "23h 59.999 s is Day 1, 23h");
+    p.age_ms = 24u * PET_MS_PER_GAME_HOUR;
+    CHECK(pet_age_day(&p) == 2 && pet_age_hour(&p) == 0, "24 min rolls over to Day 2, 00h");
+    p.age_ms = 3u * 24u * PET_MS_PER_GAME_HOUR + 7u * PET_MS_PER_GAME_HOUR;
+    CHECK(pet_age_day(&p) == 4 && pet_age_hour(&p) == 7, "3 days 7 h is Day 4, 07h");
+
+    pet_init(&p, 0);
+    pet_tick(&p, 90000);          /* starves */
+    CHECK(p.state == PET_DEAD, "the pet starved");
+    const uint32_t d = pet_age_day(&p);
+    const uint8_t  h = pet_age_hour(&p);
+    pet_tick(&p, 900000);
+    CHECK(pet_age_day(&p) == d && pet_age_hour(&p) == h, "the clock freezes at death");
+    pet_restart(&p, 900000);
+    CHECK(pet_age_day(&p) == 1 && pet_age_hour(&p) == 0, "a restart goes back to Day 1");
+    CHECK(pet_age_day(NULL) == 1 && pet_age_hour(NULL) == 0, "NULL is safe");
+}
+
 static void test_play_on_empty_stomach(void)
 {
     pet_t p;
@@ -244,6 +276,7 @@ int main(void)
     test_feed_portion_clamping();
     test_action_effects();
     test_play_on_empty_stomach();
+    test_age_clock();
     test_death_by_neglect();
     test_runaway_by_feeding();
     test_restart();

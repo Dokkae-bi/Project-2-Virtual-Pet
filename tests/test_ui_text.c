@@ -77,6 +77,19 @@ static void test_ending_text(void)
     check_string(PET_HUD_TEXT_RESTART2, PET_HUD_MENU_X);
 }
 
+static void test_name_and_age(void)
+{
+    pet_t p;
+    char  buf[PET_HUD_AGE_TEXT_MAX];
+
+    section("Name and age line");
+    check_string(PET_HUD_NAME, pet_hud_centered_x((uint16_t)strlen(PET_HUD_NAME)));
+    pet_init(&p, 0);
+    p.age_ms = 0xFFFFFFFFu;                      /* the longest text it can ever show */
+    pet_hud_age_text(buf, sizeof buf, &p);
+    check_string(buf, pet_hud_centered_x((uint16_t)strlen(buf)));
+}
+
 static void test_table_alignment(void)
 {
     section("The table is not shifted by a missing or extra row");
@@ -94,6 +107,7 @@ int main(void)
     printf("ui text tests\n");
     test_menu_labels();
     test_ending_text();
+    test_name_and_age();
     test_table_alignment();
 
     printf("\n----------------------------------------\n");

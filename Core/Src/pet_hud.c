@@ -4,6 +4,8 @@
  */
 #include "pet_hud.h"
 
+#include <stdio.h>
+
 uint16_t pet_hud_meter_fill_px(int16_t value, uint16_t track_w)
 {
     if (value < PET_STAT_MIN) { value = PET_STAT_MIN; }
@@ -22,6 +24,19 @@ uint16_t pet_hud_meter_color(int16_t value)
     if (value >= PET_HUD_GOOD_AT) { return PET_HUD_COL_GOOD; }
     if (value >= PET_HUD_BAD_AT)  { return PET_HUD_COL_WARN; }
     return PET_HUD_COL_BAD;
+}
+
+void pet_hud_age_text(char *buf, size_t size, const pet_t *pet)
+{
+    if ((buf == NULL) || (size == 0u)) { return; }
+    (void)snprintf(buf, size, "Day %lu  %02uh", (unsigned long)pet_age_day(pet),
+                   (unsigned)pet_age_hour(pet));
+}
+
+uint16_t pet_hud_centered_x(uint16_t chars)
+{
+    const uint32_t width = (uint32_t)chars * 6u * PET_HUD_TEXT_SCALE;
+    return (width >= PET_HUD_SCREEN_W) ? 0u : (uint16_t)((PET_HUD_SCREEN_W - width) / 2u);
 }
 
 uint16_t pet_hud_menu_row_y(uint8_t index)

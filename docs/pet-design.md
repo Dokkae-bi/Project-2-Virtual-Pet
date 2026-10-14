@@ -108,6 +108,7 @@ superseded where the two disagree.
 
 | Region | Extent | Contents | Redraw strategy |
 |---|---|---|---|
+| Name + age | y 12–48 | "Slimey" and "Day N  HHh", centred; 1 real minute = 1 game hour | name once, age line when the hour changes |
 | Stage | y 0–179 | the slime, centred, 64×64 or 96×96 | blit the sprite region only |
 | Food meter | y 184–196 | 160×12 bar + label | redraw **changed segment only** |
 | Happiness meter | y 200–212 | 160×12 bar + label | redraw **changed segment only** |
@@ -164,7 +165,7 @@ of flash is left unused.
 
 | Component | Status |
 |---|---|
-| Pet behaviour model (`Core/Src/pet_core.c`) | ✅ implemented, 50 host checks |
+| Pet behaviour model (`Core/Src/pet_core.c`) | ✅ implemented, 60 host checks |
 | Animation sequencer (`Core/Src/pet_anim.c`) | ✅ implemented, 54 host checks |
 | State → animation mapping (`pet_anim_select`) | ✅ implemented |
 | Sprite scaler / frame builder (`Core/Src/pet_render.c`) | ✅ implemented, 38 host checks |
@@ -173,7 +174,7 @@ of flash is left unused.
 | Display driver sprite blit (`ILI9341_DrawBitmap`) | ✅ implemented |
 | PNG → RGB565 converter (`tools/png_to_rgb565.py`) | ✅ implemented |
 | Artwork: all 7 states drawn and converted | ✅ done |
-| HUD layout and meter maths (`Core/Src/pet_hud.c`) | ✅ implemented, 40 host checks |
+| HUD layout and meter maths (`Core/Src/pet_hud.c`) | ✅ implemented, 49 host checks |
 | Action handling (`Core/Src/pet_ctl.c`) | ✅ implemented, 39 host checks |
 | Screen drawing (`Core/Src/pet_screen.c`) | ✅ implemented |
 | HUD icons (berry, heart) | ✅ drawn and converted |
@@ -183,5 +184,5 @@ of flash is left unused.
 | Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, 17 host checks — not yet on hardware |
 | Verified on real hardware | ❌ blocked on the unsoldered headers |
 
-**374 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
+**397 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
 still outstanding.
