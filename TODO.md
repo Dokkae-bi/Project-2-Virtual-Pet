@@ -1,7 +1,7 @@
 # Project 2 — what's left to do
 
 **As of 2026-10-13.** The pet runs. `main.c` starts it, the joystick drives the
-menu, and the sprite, both meters and the menu are drawn on the panel. **400 host
+menu, and the sprite, both meters and the menu are drawn on the panel. **427 host
 checks pass with no board attached.**
 
 Both required peripherals are in the code (the MPU-6050 on I2C and the potentiometer
@@ -24,7 +24,7 @@ it on hardware.
 | `pet_screen` | draws the screen — the only HAL-facing pet module |
 | `main.c` | starts the pet, reads the joystick, runs the loop |
 | `sprites/` | 7 slime states + 2 HUD icons, all converted |
-| `tests/` | 400 checks across 11 suites, all passing |
+| `tests/` | 427 checks across 12 suites, all passing |
 | `tools/png_to_rgb565.py` | the artwork converter, re-runnable |
 | `Drivers/BSP/GFX01M2/ili9341.c` | added `ILI9341_DrawBitmap` — the supplied BSP had no way to draw an image |
 
@@ -67,6 +67,9 @@ sensor". Still to do on it, once the headers are soldered:
 - [ ] wiggle the VCC wire while shaking, and press the board's RESET mid-shake →
       within ~1 s `LD2` is back on and shaking works (tests the bus-clear in
       `I2C2_Recover` and the sleep check)
+- [ ] tipping the board left/right slides the slime that way (if backwards, flip
+      `PET_TILT_DIR` in `pet_tilt.h`); level it and it stops; it stops at both edges
+      without leaving a trail; tune `PET_TILT_DEAD_COUNTS` / `PET_TILT_MAX_STEP`
 - [ ] shaking with the menu open, or with the pet dead/run away, does nothing
 - [ ] walking around or tapping the table does not trigger Play — if it does, raise
       `PET_SHAKE_JOLT_MG` in `pet_shake.h`; if real shakes are missed, lower it
@@ -202,9 +205,10 @@ Same pattern for the others:
 | `test_pet_shake` | `pet_shake.c` |
 | `test_mpu6050_regs` | `mpu6050_regs.c` |
 | `test_pet_pot` | `pet_pot.c` |
+| `test_pet_tilt` | `pet_tilt.c` |
 | `test_ui_text` | `gfx_font5x7.c pet_ui.c pet_core.c`, plus `-I Drivers/BSP/GFX01M2` |
 
-Expected totals: **60 / 54 / 38 / 60 / 27 / 52 / 39 / 16 / 11 / 17 / 26 = 400 checks.**
+Expected totals: **60 / 54 / 38 / 60 / 27 / 52 / 39 / 16 / 11 / 17 / 26 / 27 = 427 checks.**
 
 **Firmware build** — use the STM32 VS Code extension, or:
 
