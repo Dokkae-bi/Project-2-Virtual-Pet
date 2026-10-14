@@ -72,7 +72,7 @@ requirements, and neither is wired up.
 |---|---|
 | GPIO | push-button, joystick |
 | ADC | potentiometer |
-| Additional I2C / UART / SPI device | MPU-6050 on I2C1 |
+| Additional I2C / UART / SPI device | MPU-6050 on I2C2 (PF1/PF0) |
 | Two purposeful external input/output sources | potentiometer + accelerometer (+ buzzer) |
 | Timer / tick scheduling | PWM buzzer + the `HAL_GetTick()` scheduler |
 | LCD over SPI | ILI9341 on SPI1 |

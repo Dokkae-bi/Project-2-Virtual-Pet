@@ -108,8 +108,8 @@ Feed row.
 | Joystick UP | `PC0` | active low, internal pull-up |
 | User button B1 | `PC13` | configured for a rising-edge interrupt, **but the EXTI IRQ is never enabled** — poll it |
 | Potentiometer wiper | `PF3` | `ADC3_IN6`, analog (`GPIO_MODE_ANALOG_ADC_CONTROL`) |
-| I2C1 SCL (MPU-6050) | `PB8` | AF4, open drain, 100 kHz |
-| I2C1 SDA (MPU-6050) | `PB9` | AF4, open drain |
+| I2C2 SCL (MPU-6050) | `PF1` | AF4, open drain, 100 kHz |
+| I2C2 SDA (MPU-6050) | `PF0` | AF4, open drain |
 | LD2 (green) | `PB7` | **on = shake sensor answering**, off = missing or unplugged |
 
 ### ⚠️ `PA9` is claimed twice — do not initialise USB Host
@@ -128,12 +128,13 @@ Selected in `docs/pet-design.md`.
 | Role | Device | Status |
 |---|---|---|
 | Analog input | **Potentiometer** (10 kΩ linear) | **in the code, not yet verified on hardware.** `ADC3_IN6` on `PF3`; selects the feeding portion 1–5 |
-| I2C device | **GY-521 / MPU-6050** accelerometer | **in the code, not yet verified on hardware.** `I2C1` **remapped to `PB8`/`PB9`**, address `0x68`, 100 kHz |
+| I2C device | **GY-521 / MPU-6050** accelerometer | **in the code, not yet verified on hardware.** `I2C2` on `PF1` (SCL) / `PF0` (SDA), address `0x68`, 100 kHz |
 | Optional output | PWM buzzer | not started; tone per mood, chirp per action |
 
-The I2C remap is not optional: the CubeMX default `I2C1` pins are `PB6`/`PB7`,
-and **`PB6` is the joystick LEFT input** while `PB7` drives `LD2`. Enabling I2C1
-on its defaults silently breaks the joystick.
+The pins are not the CubeMX defaults: `I2C1` would sit on `PB6`/`PB7`, and
+**`PB6` is the joystick LEFT input** while `PB7` drives `LD2`, so enabling it on
+its defaults silently breaks the joystick. The gyro uses `I2C2` on `PF1`/`PF0`
+instead.
 
 #### MPU-6050 shake sensor
 
@@ -141,12 +142,13 @@ on its defaults silently breaks the joystick.
 |---|---|
 | VCC | 3V3 |
 | GND | GND |
-| SCL | `PB8` |
-| SDA | `PB9` |
+| SCL | `PF1` |
+| SDA | `PF0` |
 | AD0, INT, XDA, XCL | leave unconnected (AD0 is pulled low on the board → address `0x68`) |
 
-Check UM2179 (the Nucleo-144 user manual) for which header pins carry `PB8`/`PB9`
-before wiring — the GFX01M2 may cover the Zio connector, in which case use the
+Check UM2179 (the Nucleo-144 user manual) for which header pins carry `PF1`/`PF0`
+before wiring (the morpho labels may also show `PH1`/`PH0`, the oscillator pins, which are
+different pads) — the GFX01M2 may cover the Zio connector, in which case use the
 morpho pins. **Unplug USB before wiring.**
 
 How it works:
@@ -164,7 +166,7 @@ How it works:
 - **Missing or unplugged sensor:** the pet keeps running without it, `LD2` turns
   off, and the sensor is looked for again once a second, so plugging it back in
   recovers without a reset. Every failure also frees the bus (nine SCL pulses and
-  a STOP) and restarts I2C1, because a wire glitch can otherwise leave it stuck
+  a STOP) and restarts I2C2, because a wire glitch can otherwise leave it stuck
   "busy" until the board is reset. Once a second it also checks the sensor hasn't
   browned out and gone back to sleep, which would read as zeros without failing.
 - `WHO_AM_I` must read `0x68` (genuine) or `0x70`/`0x72` (clones commonly fitted
@@ -211,7 +213,7 @@ How it works:
 | Joystick LEFT / RIGHT | reserved — no action yet |
 | User button B1 (`PC13`) | close the menu without acting (`PET_INPUT_BACK`) — **not wired up yet, see TODO.md** |
 | Potentiometer → ADC | selects the feeding portion, 1–5, shown beside the Feed row |
-| Shake the MPU-6050 (I2C1) | **Play** — on the pet screen only, at most once per 1.5 s |
+| Shake the MPU-6050 (I2C2) | **Play** — on the pet screen only, at most once per 1.5 s |
 
 Input handling lives in `Core/Src/pet_ui.c` and is driven by logical events
 (`pet_input_t`), so the whole control scheme is tested on a PC without the board.
@@ -330,14 +332,14 @@ The terminal configure must find the **ST bundle's** `arm-none-eabi-gcc` first o
 export PATH="$HOME/Library/Application Support/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin:$PATH"
 ```
 
-> ⚠️ **I2C1 and ADC3 are enabled by hand.** `HAL_I2C_MODULE_ENABLED` and
+> ⚠️ **I2C2 and ADC3 are enabled by hand.** `HAL_I2C_MODULE_ENABLED` and
 > `HAL_ADC_MODULE_ENABLED` were uncommented in `Core/Inc/stm32l4xx_hal_conf.h`;
-> `MX_I2C1_Init`/`MX_ADC3_Init` live in `USER CODE` blocks of `main.c` and the MSP
+> `MX_I2C2_Init`/`MX_ADC3_Init` live in `USER CODE` blocks of `main.c` and the MSP
 > inits in `USER CODE 1` of `stm32l4xx_hal_msp.c`. The ST ADC driver files
 > (`stm32l4xx_hal_adc*.c/.h`, `stm32l4xx_ll_adc.h`) were copied unmodified from
 > STM32Cube_FW_L4 V1.18.2 and are built from the top-level `CMakeLists.txt`.
 > The `.ioc` knows about none of this. Before regenerating from CubeMX, either
-> add I2C1 (`PB8`/`PB9`) and ADC3 (`PF3`, IN6) there **and delete the hand-written
+> add I2C2 (`PF1`/`PF0`) and ADC3 (`PF3`, IN6) there **and delete the hand-written
 > `MX_*_Init` and `HAL_*_MspInit` copies** (or the link fails with duplicates),
 > or re-apply the two `hal_conf.h` lines afterwards.
 
@@ -464,8 +466,8 @@ state machine (`pet_ui`), the PNG→RGB565 converter, the sprite artwork set, th
 `ILI9341_DrawBitmap` blit, and all 225 host tests. See `git log` for the commit
 history.
 
-**Malek Albdoor:** the MPU-6050 shake sensor — I2C1 bring-up on `PB8`/`PB9`
-(`MX_I2C1_Init`, `HAL_I2C_MspInit`), the MPU-6050 driver (`mpu6050`,
+**Malek Albdoor:** the MPU-6050 shake sensor — I2C2 bring-up on `PF1`/`PF0`
+(`MX_I2C2_Init`, `HAL_I2C_MspInit`), the MPU-6050 driver (`mpu6050`,
 `mpu6050_regs`), the shake detector (`pet_shake`), the non-blocking poll in
 `main.c` that turns a shake into Play with retry when the sensor is missing, and
 the 27 host checks in `test_pet_shake` and `test_mpu6050_regs`. The potentiometer
@@ -498,7 +500,7 @@ ADC and an MPU-6050 accelerometer to **`I2C1` on its default pins `PB6`/`PB7`**.
 On checking `Drivers/BSP/GFX01M2/gfx01m2_conf.h` against the pin map, `PB6` is the
 GFX01M2's **joystick LEFT** input and `PB7` drives the on-board **LD2** LED. The
 default `I2C1` pin assignment is therefore unusable on this board, and the peripheral
-plan had to be changed to remap `I2C1` to `PB8`/`PB9`. This is exactly the kind of
+plan had to be changed to move the gyro off `I2C1` (first to `PB8`/`PB9`, later to `I2C2` on `PF1`/`PF0`). This is exactly the kind of
 invented/unverified detail the brief warns about: the suggestion was plausible in
 general but wrong for this specific board, and was only caught by checking the
 actual configuration header.

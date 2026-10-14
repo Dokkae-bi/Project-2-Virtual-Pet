@@ -18,7 +18,7 @@ reconstructed honestly at the end.
 
 | Tool | Areas assisted |
 |---|---|
-| Claude Code (Claude Opus 5.5) | MPU-6050 shake sensor: the plan, `pet_shake`, `mpu6050`/`mpu6050_regs`, I2C1 bring-up, the main-loop poll, their host tests (Malek Albdoor) |
+| Claude Code (Claude Opus 5.5) | MPU-6050 shake sensor: the plan, `pet_shake`, `mpu6050`/`mpu6050_regs`, I2C2 bring-up, the main-loop poll, their host tests (Malek Albdoor) |
 | _TBD_ | _TBD_ |
 
 ---
@@ -41,7 +41,7 @@ So the default assignment collides with the display board's joystick and the use
 LED. The suggestion was plausible in general and wrong for this specific board.
 
 **Resolution:** remap `I2C1` to `PB8`/`PB9`, and verify the chosen pins against the
-GFX01M2 pin map *before* wiring anything.
+GFX01M2 pin map *before* wiring anything. (The gyro was later moved again, to `I2C2` on `PF1`/`PF0`.)
 
 **Lesson:** a generically-correct peripheral configuration is not evidence that it
 is correct for this board. Always diff the suggestion against the actual
@@ -98,7 +98,7 @@ section now says so.
 **Verified by:** clean firmware build, no warnings.
 
 **Still unverified on hardware** (the AI's values, checked against documents only):
-the I2C1 `TIMING` value `0x60420F13`, `PB8`/`PB9` as `AF4` for I2C1, the clone
+the I2C2 `TIMING` value `0x60420F13`, `PF1`/`PF0` as `AF4` for I2C2, the clone
 `WHO_AM_I` values `0x70`/`0x72`, and the shake thresholds. The hardware checklist
 in `TODO.md` §2 covers each one.
 

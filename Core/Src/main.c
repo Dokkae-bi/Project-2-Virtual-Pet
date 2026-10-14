@@ -49,9 +49,9 @@
 SPI_HandleTypeDef hspi1;
 
 /* USER CODE BEGIN PV */
-/* I2C1 for the MPU-6050 shake sensor. Kept in a USER CODE block because the
-   .ioc does not know about I2C1, so CubeMX would otherwise delete it. */
-I2C_HandleTypeDef hi2c1;
+/* I2C2 for the MPU-6050 shake sensor. Kept in a USER CODE block because the
+   .ioc does not know about I2C2, so CubeMX would otherwise delete it. */
+I2C_HandleTypeDef hi2c2;
 
 /* Pet state. static because the stack is only 2 KB. */
 static pet_ctl_t g_pet;
@@ -63,7 +63,7 @@ static pet_ui_t  g_ui;
 static uint8_t g_portion = PET_FEED_PORTION_MIN;
 
 /* Potentiometer on PF3 (ADC3_IN6). Kept in a USER CODE block for the same
-   reason as hi2c1: the .ioc does not know about ADC3. */
+   reason as hi2c2: the .ioc does not know about ADC3. */
 #define POT_SAMPLE_MS    20u     /* 50 Hz: faster than a hand turns a knob */
 #define POT_TIMEOUT_MS   2u      /* one conversion takes ~7 us */
 ADC_HandleTypeDef hadc3;
@@ -85,11 +85,11 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
-static void MX_I2C1_Init(void);
+static void MX_I2C2_Init(void);
 static pet_input_t Input_Read(void);
 static bool Shake_Poll(uint32_t now);
 static void Shake_Offline(uint32_t now);
-static void I2C1_Recover(void);
+static void I2C2_Recover(void);
 static void MX_ADC3_Init(void);
 static void Pot_Supply_Init(void);
 static void Pot_Poll(uint32_t now);
@@ -157,7 +157,7 @@ static pet_input_t Input_Read(void)
   *
   * Two quieter failures are handled too. A glitch on the wires can leave the
   * I2C bus looking busy forever, so every failure also frees the bus and
-  * restarts I2C1 (I2C1_Recover). And a sensor that loses power for a moment
+  * restarts I2C2 (I2C2_Recover). And a sensor that loses power for a moment
   * comes back asleep, reading zeros while still answering, so once a second it
   * is asked whether it is still awake.
   *
@@ -172,7 +172,7 @@ static bool Shake_Poll(uint32_t now)
 
   if (!g_shake_online)
   {
-    if (mpu6050_init(&hi2c1) != HAL_OK)
+    if (mpu6050_init(&hi2c2) != HAL_OK)
     {
       Shake_Offline(now);
       return false;
@@ -187,7 +187,7 @@ static bool Shake_Poll(uint32_t now)
 
   if ((int32_t)(now - g_shake_awake_ms) >= 0)
   {
-    if (mpu6050_check_awake(&hi2c1) != HAL_OK)
+    if (mpu6050_check_awake(&hi2c2) != HAL_OK)
     {
       Shake_Offline(now);
       return false;
@@ -196,7 +196,7 @@ static bool Shake_Poll(uint32_t now)
   }
 
   int16_t accel[3];
-  if (mpu6050_read_accel(&hi2c1, accel) != HAL_OK)
+  if (mpu6050_read_accel(&hi2c2, accel) != HAL_OK)
   {
     Shake_Offline(now);
     return false;
@@ -215,17 +215,17 @@ static void Shake_Offline(uint32_t now)
   g_shake_online  = false;
   g_shake_next_ms = now + SHAKE_RETRY_MS;
   HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
-  I2C1_Recover();
+  I2C2_Recover();
 }
 
 /* Roughly 20 us at 56.8 MHz: well over the 5 us an I2C half-clock needs. */
-static void I2C1_BusDelay(void)
+static void I2C2_BusDelay(void)
 {
   for (volatile uint32_t n = 0u; n < 300u; n++) { }
 }
 
 /**
-  * @brief  Free a stuck I2C bus and restart I2C1.
+  * @brief  Free a stuck I2C bus and restart I2C2.
   *
   * HAL clears its own state after a failed transfer but leaves the peripheral
   * enabled, and its BUSY flag only clears on a STOP. A START with no STOP (a
@@ -233,46 +233,46 @@ static void I2C1_BusDelay(void)
   * every later call waits out HAL's 25 ms busy timeout and fails. A slave
   * caught mid-byte can also hold SDA low indefinitely.
   *
-  * The standard fix (I2C spec, "bus clear"): take PB8/PB9 as plain open-drain
+  * The standard fix (I2C spec, "bus clear"): take PF1/PF0 as plain open-drain
   * GPIO, clock SCL nine times so any slave finishes its byte and lets go of SDA,
-  * send a STOP, then re-initialise I2C1, which puts the pins back on AF4.
+  * send a STOP, then re-initialise I2C2, which puts the pins back on AF4.
   * Takes well under a millisecond and runs at most once per SHAKE_RETRY_MS.
   */
-static void I2C1_Recover(void)
+static void I2C2_Recover(void)
 {
-  (void)HAL_I2C_DeInit(&hi2c1);
+  (void)HAL_I2C_DeInit(&hi2c2);
 
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8 | GPIO_PIN_9, GPIO_PIN_SET);
-  GPIO_InitStruct.Pin   = GPIO_PIN_8 | GPIO_PIN_9;
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_1 | GPIO_PIN_0, GPIO_PIN_SET);
+  GPIO_InitStruct.Pin   = GPIO_PIN_1 | GPIO_PIN_0;
   GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_OD;
   GPIO_InitStruct.Pull  = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
   for (uint32_t i = 0u; i < 9u; i++)
   {
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);   /* SCL low  */
-    I2C1_BusDelay();
-    HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);     /* SCL high */
-    I2C1_BusDelay();
+    HAL_GPIO_WritePin(GPIOF, GPIO_PIN_1, GPIO_PIN_RESET);   /* SCL low  */
+    I2C2_BusDelay();
+    HAL_GPIO_WritePin(GPIOF, GPIO_PIN_1, GPIO_PIN_SET);     /* SCL high */
+    I2C2_BusDelay();
   }
 
   /* STOP: SDA rises while SCL is high. */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_RESET);
-  I2C1_BusDelay();
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);
-  I2C1_BusDelay();
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_9, GPIO_PIN_SET);
-  I2C1_BusDelay();
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_1, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_0, GPIO_PIN_RESET);
+  I2C2_BusDelay();
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_1, GPIO_PIN_SET);
+  I2C2_BusDelay();
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_0, GPIO_PIN_SET);
+  I2C2_BusDelay();
 
-  MX_I2C1_Init();
+  MX_I2C2_Init();
 }
 
 /**
-  * @brief I2C1 Initialization Function - the MPU-6050 shake sensor.
-  *        SCL = PB8, SDA = PB9, 100 kHz standard mode.
+  * @brief I2C2 Initialization Function - the MPU-6050 shake sensor.
+  *        SCL = PF1, SDA = PF0, 100 kHz standard mode.
   *
   * TIMING 0x60420F13 is the RM0351 100 kHz table entry (SCLL 0x13, SCLH 0x0F,
   * SDADEL 2, SCLDEL 4) with PRESC raised from 3 to 6. That keeps the prescaled
@@ -282,22 +282,22 @@ static void I2C1_Recover(void)
   * missing, so unplugging the GY-521 can't land in Error_Handler from here.
   * @retval None
   */
-static void MX_I2C1_Init(void)
+static void MX_I2C2_Init(void)
 {
-  hi2c1.Instance              = I2C1;
-  hi2c1.Init.Timing           = 0x60420F13;
-  hi2c1.Init.OwnAddress1      = 0;
-  hi2c1.Init.AddressingMode   = I2C_ADDRESSINGMODE_7BIT;
-  hi2c1.Init.DualAddressMode  = I2C_DUALADDRESS_DISABLE;
-  hi2c1.Init.OwnAddress2      = 0;
-  hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-  hi2c1.Init.GeneralCallMode  = I2C_GENERALCALL_DISABLE;
-  hi2c1.Init.NoStretchMode    = I2C_NOSTRETCH_DISABLE;
-  if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+  hi2c2.Instance              = I2C2;
+  hi2c2.Init.Timing           = 0x60420F13;
+  hi2c2.Init.OwnAddress1      = 0;
+  hi2c2.Init.AddressingMode   = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode  = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2      = 0;
+  hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+  hi2c2.Init.GeneralCallMode  = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode    = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
   {
     Error_Handler();
   }
-  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
+  if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE) != HAL_OK)
   {
     Error_Handler();
   }
@@ -438,7 +438,7 @@ int main(void)
   ILI9341_Init(&hspi1);
 
   /* USER CODE BEGIN 2 */
-  MX_I2C1_Init();
+  MX_I2C2_Init();
   Pot_Supply_Init();
   MX_ADC3_Init();
   pet_pot_init(&g_pot);
