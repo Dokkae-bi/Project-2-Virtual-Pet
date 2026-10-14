@@ -107,7 +107,7 @@ Feed row.
 | Joystick RIGHT | `PB0` | active low, internal pull-up |
 | Joystick UP | `PC0` | active low, internal pull-up |
 | User button B1 | `PC13` | configured for a rising-edge interrupt, **but the EXTI IRQ is never enabled** — poll it |
-| Potentiometer wiper | `PA3` | `ADC1_IN8`, analog (`GPIO_MODE_ANALOG_ADC_CONTROL`) |
+| Potentiometer wiper | `PF3` | `ADC3_IN6`, analog (`GPIO_MODE_ANALOG_ADC_CONTROL`) |
 | I2C1 SCL (MPU-6050) | `PB8` | AF4, open drain, 100 kHz |
 | I2C1 SDA (MPU-6050) | `PB9` | AF4, open drain |
 | LD2 (green) | `PB7` | **on = shake sensor answering**, off = missing or unplugged |
@@ -127,7 +127,7 @@ Selected in `docs/pet-design.md`.
 
 | Role | Device | Status |
 |---|---|---|
-| Analog input | **Potentiometer** (10 kΩ linear) | **in the code, not yet verified on hardware.** `ADC1_IN8` on `PA3`; selects the feeding portion 1–5 |
+| Analog input | **Potentiometer** (10 kΩ linear) | **in the code, not yet verified on hardware.** `ADC3_IN6` on `PF3`; selects the feeding portion 1–5 |
 | I2C device | **GY-521 / MPU-6050** accelerometer | **in the code, not yet verified on hardware.** `I2C1` **remapped to `PB8`/`PB9`**, address `0x68`, 100 kHz |
 | Optional output | PWM buzzer | not started; tone per mood, chirp per action |
 
@@ -174,17 +174,21 @@ How it works:
 
 | Pot pin | Connect to |
 |---|---|
-| one end | 3V3 |
-| other end | GND |
-| wiper (middle) | `PA3` |
+| one end | `PF11` (driven high = 3.3 V by the firmware) |
+| other end | `PF15` (driven low = 0 V by the firmware) |
+| wiper (middle) | `PF3` |
 
-`PA3` should be **A0** on the Nucleo-144 Zio connector. Confirm it in UM2179
-before wiring, and **never connect the pot to 5 V**: the ADC pin's limit is the
-3.3 V supply. Swap the two end wires if you want the knob to run the other way.
+`PF3` is used because `PA3` (the obvious A0) is taken by the display board, and
+the ports D and E pins have no ADC. Confirm where `PF3` sits on your board in
+UM2179 before wiring, and **never connect the pot to 5 V**: the ADC pin's limit is the
+3.3 V supply. The pot is powered from `PF11` and `PF15` instead of the 3V3 and GND
+pins (`Pot_Supply_Init` in `main.c`): the pot draws only 0.33 mA, well within what a
+pin can supply. For the final build you can wire the ends to real 3V3 and GND and
+drop that function. Swap the two end wires if you want the knob to run the other way.
 
 How it works:
 
-- ADC1 reads `PA3` every **20 ms**: 12-bit, a single software-started
+- ADC3 reads `PF3` every **20 ms**: 12-bit, a single software-started
   conversion of about 7 µs. No `HAL_Delay`, no DMA, no interrupt.
 - The range is split into five equal bands, giving **portion 1–5**. A running
   average takes out noise, and the reading has to go **60 counts (~1.5%)** past a
@@ -193,7 +197,7 @@ How it works:
 - The portion is shown beside the Feed row and is exactly what Feed uses:
   food +12 × portion.
 - **Unavailable input:** a failed conversion keeps the last portion, so Feed
-  still works. A disconnected wiper leaves `PA3` floating and reads as a random
+  still works. A disconnected wiper leaves `PF3` floating and reads as a random
   portion — if the number wanders on its own, check the wiper wire.
 
 ---
@@ -326,14 +330,14 @@ The terminal configure must find the **ST bundle's** `arm-none-eabi-gcc` first o
 export PATH="$HOME/Library/Application Support/stm32cube/bundles/gnu-tools-for-stm32/14.3.1+st.2/bin:$PATH"
 ```
 
-> ⚠️ **I2C1 and ADC1 are enabled by hand.** `HAL_I2C_MODULE_ENABLED` and
+> ⚠️ **I2C1 and ADC3 are enabled by hand.** `HAL_I2C_MODULE_ENABLED` and
 > `HAL_ADC_MODULE_ENABLED` were uncommented in `Core/Inc/stm32l4xx_hal_conf.h`;
-> `MX_I2C1_Init`/`MX_ADC1_Init` live in `USER CODE` blocks of `main.c` and the MSP
+> `MX_I2C1_Init`/`MX_ADC3_Init` live in `USER CODE` blocks of `main.c` and the MSP
 > inits in `USER CODE 1` of `stm32l4xx_hal_msp.c`. The ST ADC driver files
 > (`stm32l4xx_hal_adc*.c/.h`, `stm32l4xx_ll_adc.h`) were copied unmodified from
 > STM32Cube_FW_L4 V1.18.2 and are built from the top-level `CMakeLists.txt`.
 > The `.ioc` knows about none of this. Before regenerating from CubeMX, either
-> add I2C1 (`PB8`/`PB9`) and ADC1 (`PA3`, IN8) there **and delete the hand-written
+> add I2C1 (`PB8`/`PB9`) and ADC3 (`PF3`, IN6) there **and delete the hand-written
 > `MX_*_Init` and `HAL_*_MspInit` copies** (or the link fails with duplicates),
 > or re-apply the two `hal_conf.h` lines afterwards.
 
@@ -465,7 +469,7 @@ history.
 `mpu6050_regs`), the shake detector (`pet_shake`), the non-blocking poll in
 `main.c` that turns a shake into Play with retry when the sensor is missing, and
 the 27 host checks in `test_pet_shake` and `test_mpu6050_regs`. The potentiometer
-— ADC1 bring-up on `PA3` (`MX_ADC1_Init`, `HAL_ADC_MspInit`, the ST ADC driver),
+— ADC3 bring-up on `PF3` (`MX_ADC3_Init`, `HAL_ADC_MspInit`, the ST ADC driver),
 the smoothing and hysteresis that map it to a portion (`pet_pot`), the poll in
 `main.c` that sets the Feed portion and the menu, and the 17 host checks in
 `test_pet_pot`.
