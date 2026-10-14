@@ -14,7 +14,7 @@ it on hardware.
 
 | Where | What |
 |---|---|
-| `pet_core` | pet model: hunger/happiness, limits, rates, action effects |
+| `pet_core` | pet model: food/happiness, limits, rates, action effects |
 | `pet_anim` | animation sequencer + state→animation mapping |
 | `pet_render` | builds every animation frame by scaling one sprite |
 | `pet_view` | sprite selection and frame composition |
@@ -83,7 +83,7 @@ Still to do on it, once the headers are soldered:
 - [ ] wire it (README table: ends to 3V3/GND, wiper to `PA3`, **never 5 V**)
 - [ ] turning the knob end to end steps the number beside Feed through 1–5
 - [ ] the number does not flicker with the knob resting near a band edge
-- [ ] Feed at portion 1 and at portion 5 → hunger drops by 12 and by 60
+- [ ] Feed at portion 1 and at portion 5 → food rises by 12 and by 60
 - [ ] if it stays on 1 whatever the knob does: check the wiper is on `PA3` and
       read `HAL_ADC_GetValue` under the debugger — it should run 0 to ~4095
 
@@ -201,7 +201,7 @@ Same pattern for the others:
 | `test_mpu6050_regs` | `mpu6050_regs.c` |
 | `test_pet_pot` | `pet_pot.c` |
 
-Expected totals: **46 / 54 / 38 / 60 / 27 / 39 / 39 / 16 / 11 / 17 = 347 checks.**
+Expected totals: **50 / 54 / 38 / 60 / 27 / 40 / 39 / 16 / 11 / 17 = 352 checks.**
 
 **Firmware build** — use the STM32 VS Code extension, or:
 
