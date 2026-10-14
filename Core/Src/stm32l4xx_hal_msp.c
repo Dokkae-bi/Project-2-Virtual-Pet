@@ -130,32 +130,32 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
 /* USER CODE BEGIN 1 */
 
 /**
-  * @brief I2C1 MSP init for the MPU-6050: SCL = PB8, SDA = PB9 (AF4).
+  * @brief I2C2 MSP init for the MPU-6050: SCL = PF1, SDA = PF0 (AF4).
   *        Not the CubeMX default PB6/PB7: PB6 is joystick LEFT, PB7 is LD2.
   */
 void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
 {
-  if (hi2c->Instance == I2C1)
+  if (hi2c->Instance == I2C2)
   {
     RCC_PeriphCLKInitTypeDef clk = {0};
-    clk.PeriphClockSelection = RCC_PERIPHCLK_I2C1;
-    clk.I2c1ClockSelection   = RCC_I2C1CLKSOURCE_PCLK1;   /* 28.4 MHz */
+    clk.PeriphClockSelection = RCC_PERIPHCLK_I2C2;
+    clk.I2c2ClockSelection   = RCC_I2C2CLKSOURCE_PCLK1;   /* 28.4 MHz */
     if (HAL_RCCEx_PeriphCLKConfig(&clk) != HAL_OK)
     {
       Error_Handler();
     }
 
-    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOF_CLK_ENABLE();
     GPIO_InitTypeDef GPIO_InitStruct = {0};
-    GPIO_InitStruct.Pin       = GPIO_PIN_8 | GPIO_PIN_9;
+    GPIO_InitStruct.Pin       = GPIO_PIN_1 | GPIO_PIN_0;
     GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
     /* The GY-521 has its own pull-ups; the internal ones are a backup only. */
     GPIO_InitStruct.Pull      = GPIO_PULLUP;
     GPIO_InitStruct.Speed     = GPIO_SPEED_FREQ_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    GPIO_InitStruct.Alternate = GPIO_AF4_I2C2;
+    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-    __HAL_RCC_I2C1_CLK_ENABLE();
+    __HAL_RCC_I2C2_CLK_ENABLE();
   }
 }
 

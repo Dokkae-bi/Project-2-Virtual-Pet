@@ -56,7 +56,7 @@ The brief needs **at least one analog input** and **at least one digital device 
 I2C, UART or SPI**. The LCD and its built-in joystick explicitly do not count — the
 handout says "in addition to the LCD and its built-in joystick".
 
-**The digital device is done in code: a GY-521 / MPU-6050 on I2C1 (`PB8`/`PB9`),
+**The digital device is done in code: a GY-521 / MPU-6050 on I2C2 (`PF1` SCL / `PF0` SDA),
 shake it to Play.** Wiring, behaviour and tuning are in README §2 "MPU-6050 shake
 sensor". Still to do on it, once the headers are soldered:
 
@@ -66,12 +66,12 @@ sensor". Still to do on it, once the headers are soldered:
 - [ ] unplug and replug it while running → `LD2` follows, shaking works again
 - [ ] wiggle the VCC wire while shaking, and press the board's RESET mid-shake →
       within ~1 s `LD2` is back on and shaking works (tests the bus-clear in
-      `I2C1_Recover` and the sleep check)
+      `I2C2_Recover` and the sleep check)
 - [ ] shaking with the menu open, or with the pet dead/run away, does nothing
 - [ ] walking around or tapping the table does not trigger Play — if it does, raise
       `PET_SHAKE_JOLT_MG` in `pet_shake.h`; if real shakes are missed, lower it
       toward 1500. Record the final values in the README.
-- [ ] if `LD2` never lights: `HAL_I2C_IsDeviceReady(&hi2c1, 0x68 << 1, 3, 10)` under
+- [ ] if `LD2` never lights: `HAL_I2C_IsDeviceReady(&hi2c2, 0x68 << 1, 3, 10)` under
       the debugger. `HAL_OK` → wiring is fine, read `WHO_AM_I` (reg `0x75`) and
       compare with `mpu6050_who_am_i_ok()`; otherwise check SDA/SCL aren't swapped.
       The I2C `TIMING` value `0x60420F13` is calculated, not yet measured.
@@ -93,7 +93,7 @@ driver chip genuinely counts. A **TM1637** does not — its own datasheet says t
 protocol "is not equal to I2C bus protocol totally because there is no slave
 address".
 
-**Use `I2C1` remapped to `PB8`/`PB9`.** The CubeMX default is `PB6`/`PB7`, and
+**Use `I2C2` on `PF1`/`PF0`.** The CubeMX default is `PB6`/`PB7`, and
 **`PB6` is the joystick LEFT pin** — you would silently lose a direction.
 
 ---
@@ -172,7 +172,7 @@ first hardware session as a bring-up, not a formality.
    `cmake/stm32cubemx/CMakeLists.txt`.
 9. ⚠️ **Regenerating `main.c` from CubeMX will wipe the pet integration.** The pet
    code now sits inside `USER CODE BEGIN/END` blocks, which CubeMX preserves — but
-   only if it regenerates cleanly. **Back up `main.c` before enabling ADC3 or I2C1
+   only if it regenerates cleanly. **Back up `main.c` before enabling ADC3 or I2C2
    in CubeMX**, then diff afterwards. Losing the main loop to a regeneration is an
    easy afternoon gone.
 10. **Any character outside space..`z` (and `#$%&*>@`) draws blank.**
