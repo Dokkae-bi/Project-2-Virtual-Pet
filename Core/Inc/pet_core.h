@@ -31,6 +31,11 @@
 #define PET_FOOD_MS_PER_UNIT            1200u   /* -1 food      every 1.2 s */
 #define PET_HAPPINESS_MS_PER_UNIT       2000u   /* -1 happiness every 2.0 s */
 
+/* Age clock: 1 real minute is 1 game hour. Only used to show how long the pet
+   has lived, so it has no effect on the statistics. */
+#define PET_MS_PER_GAME_HOUR            60000u
+#define PET_HOURS_PER_DAY               24u
+
 /* Action effects. */
 #define PET_FEED_PORTION_MIN            1u      /* smallest portion the ADC can pick */
 #define PET_FEED_PORTION_MAX            5u      /* largest portion */
@@ -116,6 +121,11 @@ void pet_restart(pet_t *pet, uint32_t now_ms);
 
 /* false once the pet is dead or has run away; the UI uses this to lock input. */
 bool pet_is_interactive(const pet_t *pet);
+
+/* How long the pet has lived, as a game day (starting at 1) and hour (0-23).
+   Frozen once the pet has died or left, back to Day 1 after pet_restart(). */
+uint32_t pet_age_day(const pet_t *pet);
+uint8_t  pet_age_hour(const pet_t *pet);
 
 /* Current mood, for choosing the idle sprite. */
 pet_mood_t pet_mood(const pet_t *pet);

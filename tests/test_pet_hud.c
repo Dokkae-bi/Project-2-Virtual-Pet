@@ -11,6 +11,7 @@
  *        -o /tmp/test_pet_hud && /tmp/test_pet_hud
  */
 #include <stdio.h>
+#include <string.h>
 
 #include "pet_hud.h"
 
@@ -131,6 +132,34 @@ static void test_flash_cost(void)
     CHECK(icon_bytes * 2u < 4096u, "both HUD icons cost under 4 KB of flash");
 }
 
+static void test_name_and_age_text(void)
+{
+    pet_t p;
+    char  buf[PET_HUD_AGE_TEXT_MAX];
+
+    pet_init(&p, 0);
+    section("Age text");
+    pet_hud_age_text(buf, sizeof buf, &p);
+    CHECK(strcmp(buf, "Day 1  00h") == 0, "a new pet reads \"Day 1  00h\"");
+    p.age_ms = 3u * 24u * PET_MS_PER_GAME_HOUR + 7u * PET_MS_PER_GAME_HOUR;
+    pet_hud_age_text(buf, sizeof buf, &p);
+    CHECK(strcmp(buf, "Day 4  07h") == 0, "3 days 7 h reads \"Day 4  07h\"");
+    p.age_ms = 0xFFFFFFFFu;
+    pet_hud_age_text(buf, sizeof buf, &p);
+    CHECK(strlen(buf) < sizeof buf, "the largest possible age still fits the buffer");
+    pet_hud_age_text(buf, 0, &p);
+    CHECK(1, "a zero-size buffer is left alone");
+
+    section("Centred text");
+    CHECK(pet_hud_centered_x(0u) == PET_HUD_SCREEN_W / 2u, "empty text centres on the middle");
+    CHECK(pet_hud_centered_x(6u) == (PET_HUD_SCREEN_W - 6u * 12u) / 2u, "6 chars are centred at size 2");
+    CHECK(pet_hud_centered_x(100u) == 0u, "text too wide for the screen starts at 0");
+
+    section("Name and age sit above the sprite");
+    CHECK(PET_HUD_NAME_Y + 14u <= PET_HUD_DAY_Y, "the name ends above the age line");
+    CHECK(PET_HUD_DAY_Y + 14u <= PET_HUD_SPRITE_Y, "the age line ends above the sprite");
+}
+
 int main(void)
 {
     printf("pet_hud tests\n");
@@ -140,6 +169,7 @@ int main(void)
     test_menu_rows();
     test_layout_fits();
     test_flash_cost();
+    test_name_and_age_text();
 
     printf("\n----------------------------------------\n");
     printf("%d passed, %d failed\n", g_pass, g_fail);

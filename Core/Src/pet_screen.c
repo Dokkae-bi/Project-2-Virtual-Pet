@@ -5,6 +5,7 @@
 #include "pet_screen.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "ili9341.h"
 #include "pet_hud.h"
@@ -19,6 +20,8 @@ static uint16_t g_frame[PET_HUD_SPRITE_W * PET_HUD_SPRITE_H];
 
 /* What the panel is currently showing, so we only push changes. */
 static struct {
+    uint32_t      day;
+    uint8_t       hour;
     int16_t       food;
     int16_t       happiness;
     uint8_t       cursor;
@@ -110,6 +113,18 @@ static void draw_ending(const pet_t *pet)
                        PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
 }
 
+/* Name once, then the age line whenever the game hour ticks over. The line is
+   cleared first because "Day 9  23h" and "Day 10  00h" differ in width. */
+static void draw_age(const pet_t *pet)
+{
+    char text[PET_HUD_AGE_TEXT_MAX];
+
+    pet_hud_age_text(text, sizeof(text), pet);
+    ILI9341_FillRect(0, PET_HUD_DAY_Y, PET_HUD_SCREEN_W, 14u, PET_HUD_COL_PANEL);
+    ILI9341_DrawString(pet_hud_centered_x((uint16_t)strlen(text)), PET_HUD_DAY_Y, text,
+                       PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
+}
+
 static void draw_pet(const pet_t *pet, const pet_anim_t *anim)
 {
     pet_view_compose_stage(g_frame, PET_HUD_SPRITE_W, PET_HUD_SPRITE_H, pet, anim);
@@ -148,6 +163,19 @@ void pet_screen_update(const pet_t *pet, const pet_anim_t *anim, const pet_ui_t 
         g_drawn.anim  = showing;
         g_drawn.frame = frame;
         g_drawn.mood  = mood;
+    }
+
+    if (!g_drawn.valid) {
+        ILI9341_DrawString(pet_hud_centered_x((uint16_t)strlen(PET_HUD_NAME)),
+                           PET_HUD_NAME_Y, PET_HUD_NAME,
+                           PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
+    }
+
+    if (!g_drawn.valid || (pet_age_day(pet) != g_drawn.day) ||
+        (pet_age_hour(pet) != g_drawn.hour)) {
+        draw_age(pet);
+        g_drawn.day  = pet_age_day(pet);
+        g_drawn.hour = pet_age_hour(pet);
     }
 
     if (!g_drawn.valid || (pet->food != g_drawn.food)) {

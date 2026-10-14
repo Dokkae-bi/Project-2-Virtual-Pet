@@ -6,7 +6,7 @@ Tamagotchi-style virtual pet running on a **NUCLEO-L496ZG-P** with an
 > **Status:** **the pet runs.** `main.c` starts it, the joystick drives the menu,
 > and the sprite, both meters and the menu are drawn on the panel. Shaking the
 > MPU-6050 (I2C) plays with the pet, and a potentiometer (ADC) sets how much it
-> eats. 374 host checks pass with no board attached. What's left is the hardware
+> eats. 397 host checks pass with no board attached. What's left is the hardware
 > verification — **see
 > [`TODO.md`](TODO.md)**.
 
@@ -37,6 +37,12 @@ over-feeding can push them outside it.
 |---|---|---|---|
 | Food | 0–100 | **−1 every 1.2 s** | feeding (+12 per portion), play (−9) |
 | Happiness | 0–100 | **−1 every 2.0 s** | play (+22), clean (+14), feeding (+4) |
+
+**Name and age.** The pet is called Slimey (`PET_HUD_NAME`) and his name is shown
+above him with a day counter, `Day N  HHh`. **One real minute is one game hour**,
+so a game day is 24 minutes. The counter starts at Day 1, 00h, freezes when he dies
+or runs away, and starts again after a restart. It is display only and has no effect
+on the statistics.
 
 | Outcome | Trigger | Screen / animation | Restart procedure |
 |---|---|---|---|
@@ -245,7 +251,7 @@ VirtualPet/
 ├── Middlewares/                ST USB host library (compiled, NOT initialised)
 ├── USB_HOST/                   USB host application (unused — see PA9 warning)
 ├── sprites/                    generated RGB565 assets + preview PNGs
-├── tests/                      374 host checks, run on a PC with no board
+├── tests/                      397 host checks, run on a PC with no board
 ├── tools/
 │   └── png_to_rgb565.py        artwork → RGB565 converter
 └── docs/
@@ -366,18 +372,18 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 
 | Suite | Checks |
 |---|---|
-| `test_pet_core` | 50 |
+| `test_pet_core` | 60 |
 | `test_pet_anim` | 54 |
 | `test_pet_render` | 38 |
 | `test_pet_ui` | 60 |
 | `test_pet_view` | 27 |
-| `test_pet_hud` | 40 |
+| `test_pet_hud` | 49 |
 | `test_pet_ctl` | 39 |
 | `test_pet_shake` | 16 |
 | `test_mpu6050_regs` | 11 |
 | `test_pet_pot` | 17 |
-| `test_ui_text` | 22 |
-| **Total** | **374** |
+| `test_ui_text` | 26 |
+| **Total** | **397** |
 
 ---
 

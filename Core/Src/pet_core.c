@@ -69,6 +69,18 @@ bool pet_is_interactive(const pet_t *pet)
     return (pet != NULL) && (pet->state == PET_ALIVE);
 }
 
+uint32_t pet_age_day(const pet_t *pet)
+{
+    if (pet == NULL) { return 1u; }
+    return pet->age_ms / (PET_MS_PER_GAME_HOUR * PET_HOURS_PER_DAY) + 1u;
+}
+
+uint8_t pet_age_hour(const pet_t *pet)
+{
+    if (pet == NULL) { return 0u; }
+    return (uint8_t)((pet->age_ms / PET_MS_PER_GAME_HOUR) % PET_HOURS_PER_DAY);
+}
+
 void pet_tick(pet_t *pet, uint32_t now_ms)
 {
     if (pet == NULL) { return; }

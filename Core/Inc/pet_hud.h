@@ -12,6 +12,7 @@
 #ifndef PET_HUD_H
 #define PET_HUD_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include "pet_core.h"
@@ -49,6 +50,12 @@
 #define PET_HUD_MENU_Y          248u
 #define PET_HUD_MENU_W          200u
 #define PET_HUD_MENU_ROW_H      24u
+
+/* --- name and age, centred above the sprite ------------------------------- */
+
+#define PET_HUD_NAME            "Slimey"
+#define PET_HUD_NAME_Y          12u
+#define PET_HUD_DAY_Y           34u
 
 /* --- text -------------------------------------------------------------- */
 
@@ -90,6 +97,18 @@ uint16_t pet_hud_meter_fill_px(int16_t value, uint16_t track_w);
  * PET_HUD_BAD_AT, amber in between. Out of range values are clamped.
  */
 uint16_t pet_hud_meter_color(int16_t value);
+
+/* Size of the buffer pet_hud_age_text() needs: "Day 1431655766  23h" is the
+ * longest text a 32-bit age can give. */
+#define PET_HUD_AGE_TEXT_MAX    24u
+
+/* Writes "Day N  HHh" for the pet's age. Always terminated; a zero-size
+ * buffer is left alone. */
+void pet_hud_age_text(char *buf, size_t size, const pet_t *pet);
+
+/* Left edge that centres `chars` characters of text on the screen at
+ * PET_HUD_TEXT_SCALE. Text wider than the screen starts at 0. */
+uint16_t pet_hud_centered_x(uint16_t chars);
 
 /* Top edge of menu row `index`. Out of range wraps, so it can't go off screen. */
 uint16_t pet_hud_menu_row_y(uint8_t index);
