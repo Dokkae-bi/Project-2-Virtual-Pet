@@ -69,7 +69,7 @@ static void test_selection_follows_state(void)
     CHECK(pet_view_sprite(&p, &a) == slime_delighted,
           "a new pet is at happiness 75, so it shows the delighted pose");
 
-    { pet_t h; pet_init(&h, 0); pet_tick(&h, 70000);   /* food 17 */
+    { pet_t h; pet_init(&h, 0); pet_tick(&h, 35 * PET_HAPPINESS_PERIOD_MS);   /* food 17 */
       CHECK(pet_view_sprite(&h, &a) == slime_hungry, "a very hungry pet shows the hungry pose"); }
 
     /* A pet left alone starves before it gets this unhappy - it dies at 90 s but
@@ -77,7 +77,7 @@ static void test_selection_follows_state(void)
        alive and let happiness drain. */
     { pet_t m; uint32_t t; bool miserable = false;
       pet_init(&m, 0);
-      for (t = 1000; t <= 600000; t += 1000) {
+      for (t = 1000; t <= (3u * PET_RUNAWAY_MS); t += 1000) {
           pet_tick(&m, t);
           if (m.food <= 50) { pet_feed(&m, 5, t); }
           if (m.state != PET_ALIVE) { break; }
@@ -98,14 +98,14 @@ static void test_terminal_states_win(void)
     pet_anim_start(&a, PET_ANIM_FEED, 1000);
     CHECK(pet_view_sprite(&p, &a) == slime_eating, "while feeding it shows the eating pose");
 
-    pet_tick(&p, 90000);                     /* starved part way through the feed */
+    pet_tick(&p, PET_STARVE_MS);                     /* starved part way through the feed */
     CHECK(p.state == PET_DEAD, "pet has died");
     CHECK(pet_view_sprite(&p, &a) == slime_dead,
           "it shows the dead pose, not the feeding pose");
 
     { pet_t r; uint32_t t; bool ran = false;
       pet_init(&r, 0);
-      for (t = 1000; t <= 600000; t += 1000) {
+      for (t = 1000; t <= (3u * PET_RUNAWAY_MS); t += 1000) {
           pet_tick(&r, t);
           if (r.food <= 50) { pet_feed(&r, 5, t); }
           if (r.state == PET_RUNAWAY) { ran = true; break; }
@@ -158,7 +158,7 @@ static void test_composition(void)
     {
         static uint16_t fb2[PET_SPRITE_W * PET_SPRITE_H];
         int differs, k;
-        pet_tick(&p, 90000);
+        pet_tick(&p, PET_STARVE_MS);
         pet_view_compose_stage(fb2, PET_SPRITE_W, PET_SPRITE_H, &p, &a);
         differs = 0;
         for (k = 0; k < (int)(PET_SPRITE_W * PET_SPRITE_H); k++) {

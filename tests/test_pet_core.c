@@ -48,12 +48,12 @@ static void test_time_evolution(void)
 {
     pet_t p;
     pet_init(&p, 0);
-    pet_tick(&p, 20000);   /* 20 s */
+    pet_tick(&p, 10 * PET_HAPPINESS_PERIOD_MS);   /* 20 s */
 
     section("Evolution over 20 s (-1 food / 1.2 s, -1 happiness / 2.0 s)");
     CHECK(p.food == 59, "food 75 -> 59");
     CHECK(p.happiness == 65, "happiness 75 -> 65");
-    CHECK(p.age_ms == 20000, "age counts the elapsed time");
+    CHECK(p.age_ms == 10 * PET_HAPPINESS_PERIOD_MS, "age counts the elapsed time");
     CHECK(p.state == PET_ALIVE, "still alive");
 }
 
@@ -63,10 +63,10 @@ static void test_call_frequency_independence(void)
     uint32_t t;
 
     pet_init(&single, 0);
-    pet_tick(&single, 20000);
+    pet_tick(&single, 10 * PET_HAPPINESS_PERIOD_MS);
 
     pet_init(&stepped, 0);
-    for (t = 500; t <= 20000; t += 500) {
+    for (t = 500; t <= 10 * PET_HAPPINESS_PERIOD_MS; t += 500) {
         pet_tick(&stepped, t);
     }
 
@@ -83,10 +83,10 @@ static void test_clamping(void)
 {
     pet_t p;
     pet_init(&p, 0);
-    pet_tick(&p, 20000);        /* food 59, happiness 65 */
+    pet_tick(&p, 10 * PET_HAPPINESS_PERIOD_MS);        /* food 59, happiness 65 */
 
     section("Statistics stay inside [0, 100]");
-    pet_feed(&p, 5, 20000);     /* +60 food, which would go past 100 */
+    pet_feed(&p, 5, 10 * PET_HAPPINESS_PERIOD_MS);     /* +60 food, which would go past 100 */
     CHECK(p.food == PET_STAT_MAX, "over-feeding stops at 100");
     CHECK(p.happiness == 69, "feeding adds the happiness bonus");
 
@@ -104,14 +104,14 @@ static void test_feed_portion_clamping(void)
 
     section("Feed portion is clamped to [MIN, MAX]");
     pet_init(&p, 0);
-    pet_tick(&p, 20000);            /* food 59 */
-    pet_feed(&p, 0, 20000);
+    pet_tick(&p, 10 * PET_HAPPINESS_PERIOD_MS);            /* food 59 */
+    pet_feed(&p, 0, 10 * PET_HAPPINESS_PERIOD_MS);
     CHECK(p.food == 59 + PET_FEED_FOOD_PER_PORTION,
           "portion 0 is treated as the minimum");
 
     pet_init(&p, 0);
-    pet_tick(&p, 20000);            /* food 59 */
-    pet_feed(&p, 99, 20000);
+    pet_tick(&p, 10 * PET_HAPPINESS_PERIOD_MS);            /* food 59 */
+    pet_feed(&p, 99, 10 * PET_HAPPINESS_PERIOD_MS);
     CHECK(p.food == PET_STAT_MAX,
           "portion 99 is treated as the maximum and clamps at 100");
 }
@@ -155,13 +155,13 @@ static void test_age_clock(void)
     CHECK(pet_age_day(&p) == 4 && pet_age_hour(&p) == 7, "3 days 7 h is Day 4, 07h");
 
     pet_init(&p, 0);
-    pet_tick(&p, 90000);          /* starves */
+    pet_tick(&p, PET_STARVE_MS);          /* starves */
     CHECK(p.state == PET_DEAD, "the pet starved");
     const uint32_t d = pet_age_day(&p);
     const uint8_t  h = pet_age_hour(&p);
-    pet_tick(&p, 900000);
+    pet_tick(&p, (3u * PET_RUNAWAY_MS));
     CHECK(pet_age_day(&p) == d && pet_age_hour(&p) == h, "the clock freezes at death");
-    pet_restart(&p, 900000);
+    pet_restart(&p, (3u * PET_RUNAWAY_MS));
     CHECK(pet_age_day(&p) == 1 && pet_age_hour(&p) == 0, "a restart goes back to Day 1");
     CHECK(pet_age_day(NULL) == 1 && pet_age_hour(NULL) == 0, "NULL is safe");
 }
@@ -172,28 +172,28 @@ static void test_play_on_empty_stomach(void)
     int16_t happiness_before_play;
     pet_init(&p, 0);
     section("A hungry pet refuses play until fed");
-    pet_tick(&p, 78000);          /* 65 units of food gone: 75 -> 10 */
+    pet_tick(&p, 65 * PET_FOOD_PERIOD_MS);          /* 65 units of food gone: 75 -> 10 */
     happiness_before_play = p.happiness;
     CHECK(p.food == PET_PLAY_HUNGER_LIMIT, "food reaches the play refusal threshold");
-    CHECK(!pet_play(&p, 78000), "play is refused at food 10");
+    CHECK(!pet_play(&p, 65 * PET_FOOD_PERIOD_MS), "play is refused at food 10");
     CHECK(p.last_action == PET_ACTION_NONE, "a refused play is not recorded");
     CHECK(p.action_count[PET_ACTION_PLAY] == 0, "a refused play is not counted");
     CHECK(p.happiness == happiness_before_play, "a refused play has no effect");
 
-    pet_tick(&p, 79200);
+    pet_tick(&p, 66 * PET_FOOD_PERIOD_MS);
     CHECK(p.food == PET_PLAY_HUNGER_LIMIT - 1, "food can fall below the refusal threshold");
-    CHECK(!pet_play(&p, 79200), "play remains refused while hungrier");
+    CHECK(!pet_play(&p, 66 * PET_FOOD_PERIOD_MS), "play remains refused while hungrier");
 
-    CHECK(pet_feed(&p, 1, 79200), "feeding is still accepted during the tantrum");
+    CHECK(pet_feed(&p, 1, 66 * PET_FOOD_PERIOD_MS), "feeding is still accepted during the tantrum");
     CHECK(p.food > PET_PLAY_HUNGER_LIMIT, "feeding raises food above the threshold");
-    CHECK(pet_play(&p, 79200), "play is accepted again after feeding");
+    CHECK(pet_play(&p, 66 * PET_FOOD_PERIOD_MS), "play is accepted again after feeding");
 }
 
 static void test_death_by_neglect(void)
 {
     pet_t p;
     pet_init(&p, 0);
-    pet_tick(&p, 90000);         /* 75 units x 1200 ms = 90 s */
+    pet_tick(&p, PET_STARVE_MS);         /* 75 units at the configured rate */
 
     section("Death from neglect");
     CHECK(p.food == PET_STAT_MIN, "food reaches 0 after 90 s");
@@ -212,7 +212,7 @@ static void test_runaway_by_feeding(void)
 
     /* Feed it enough to keep food up, so happiness is what runs out first.
        That's how the runaway ending is reached on purpose. */
-    for (t = 1000; t <= 600000; t += 1000) {
+    for (t = 1000; t <= (3u * PET_RUNAWAY_MS); t += 1000) {
         pet_tick(&p, t);
         if (p.food <= 50) { pet_feed(&p, 5, t); }
         if (p.state == PET_RUNAWAY) { ran_away = true; break; }
@@ -242,7 +242,7 @@ static void test_restart(void)
 {
     pet_t p;
     pet_init(&p, 0);
-    pet_tick(&p, 90000);
+    pet_tick(&p, PET_STARVE_MS);
     CHECK(p.state == PET_DEAD, "pet is dead first");
 
     section("Restart");
@@ -263,13 +263,13 @@ static void test_mood(void)
     pet_init(&p, 0);
     CHECK(pet_mood(&p) == PET_MOOD_DELIGHTED, "delighted at happiness 75");
 
-    pet_tick(&p, 40000);   /* happiness 55, food 42 */
+    pet_tick(&p, 20 * PET_HAPPINESS_PERIOD_MS);   /* happiness 55, food 42 */
     CHECK(pet_mood(&p) == PET_MOOD_CONTENT, "content in the middle band");
 
-    pet_tick(&p, 70000);   /* happiness 40, food 17 */
+    pet_tick(&p, 35 * PET_HAPPINESS_PERIOD_MS);   /* happiness 40, food 17 */
     CHECK(pet_mood(&p) == PET_MOOD_HUNGRY, "hungry once food drops to the threshold");
 
-    { pet_t p2; pet_init(&p2, 0); pet_tick(&p2, 110000);
+    { pet_t p2; pet_init(&p2, 0); pet_tick(&p2, 55 * PET_HAPPINESS_PERIOD_MS);
       CHECK(pet_mood(&p2) == PET_MOOD_MISERABLE, "miserable once happiness drops low"); }
 }
 

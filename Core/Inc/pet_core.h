@@ -20,16 +20,37 @@
 #define PET_STAT_MIN                    (0)     /* happiness floor / food floor */
 #define PET_STAT_MAX                    (100)   /* happiness ceiling / food cap */
 
-/* Evolution rates: one unit of change per this many milliseconds. These are the
-   main tuning knobs for the game - lower values reach the crisis states sooner,
-   which helps when showing death and runaway during a short presentation.
+/* Evolution rates: one unit of change per this many milliseconds, at the normal
+   pace. These are the main tuning knobs for the game.
 
-   With these values a completely neglected pet starves in 90 s (75 -> 0 food
-   at 1200 ms/unit) while its happiness is still falling, so neglect ends in
-   death. Feeding to keep food up makes happiness the limiting factor
-   instead, which is how the runaway ending gets reached. */
-#define PET_FOOD_MS_PER_UNIT            1200u   /* -1 food      every 1.2 s */
-#define PET_HAPPINESS_MS_PER_UNIT       2000u   /* -1 happiness every 2.0 s */
+   The pet is meant to be left alone for a while, so these are minutes, not
+   seconds. With the values below a completely neglected pet starves in 15
+   minutes (75 -> 0 food at 12 s/unit) while its happiness is still falling, so
+   neglect ends in death. Feeding to keep food up makes happiness the limiting
+   factor instead, which is how the runaway ending gets reached. */
+#define PET_FOOD_MS_PER_UNIT            12000u  /* -1 food      every 12 s */
+#define PET_HAPPINESS_MS_PER_UNIT       20000u  /* -1 happiness every 20 s */
+
+/* Rate multiplier. 1 is the playable pace above. Raise it to reach the endings
+   faster - the course demo needs death on camera in under two minutes, which is
+   a scale of 8. Dividing both rates by the same number keeps their ratio, so
+   neglect still kills before happiness runs out at any scale.
+
+   Overridable from the build, so a demo binary doesn't need a source edit:
+   -DPET_RATE_SCALE=8 */
+#ifndef PET_RATE_SCALE
+#define PET_RATE_SCALE                  1u
+#endif
+
+#define PET_FOOD_PERIOD_MS              (PET_FOOD_MS_PER_UNIT / PET_RATE_SCALE)
+#define PET_HAPPINESS_PERIOD_MS         (PET_HAPPINESS_MS_PER_UNIT / PET_RATE_SCALE)
+
+#if PET_RATE_SCALE < 1u
+#error "PET_RATE_SCALE must be at least 1"
+#endif
+#if (PET_FOOD_PERIOD_MS < 1u) || (PET_HAPPINESS_PERIOD_MS < 1u)
+#error "PET_RATE_SCALE is too large - a period would round down to zero"
+#endif
 
 /* Age clock: 1 real minute is 1 game hour. Only used to show how long the pet
    has lived, so it has no effect on the statistics. */
@@ -54,6 +75,12 @@
 #define PET_MOOD_MISERABLE_AT_HAPPINESS 25
 #define PET_MOOD_HUNGRY_AT_FOOD         30      /* food at or below this looks hungry */
 #define PET_MOOD_DELIGHTED_AT_HAPPINESS 75
+
+/* How long a completely neglected pet lasts, derived from the rates above.
+   Tests wait on these rather than hardcoding seconds, so retuning the game does
+   not silently invalidate every test that expects an ending. */
+#define PET_STARVE_MS                   ((uint32_t)PET_INIT_FOOD * PET_FOOD_PERIOD_MS)
+#define PET_RUNAWAY_MS                  ((uint32_t)PET_INIT_HAPPINESS * PET_HAPPINESS_PERIOD_MS)
 
 /* Life states. ALIVE is the only one where the pet accepts input. */
 typedef enum {

@@ -97,9 +97,9 @@ void pet_tick(pet_t *pet, uint32_t now_ms)
     pet->age_ms += dt;
 
     advance_by_time(&pet->food,      &pet->food_accum_ms,      dt,
-                    PET_FOOD_MS_PER_UNIT,      -1);
+                    PET_FOOD_PERIOD_MS,      -1);
     advance_by_time(&pet->happiness, &pet->happiness_accum_ms, dt,
-                    PET_HAPPINESS_MS_PER_UNIT, -1);
+                    PET_HAPPINESS_PERIOD_MS, -1);
 
     /* Check the terminal conditions after updating the statistics. Food is
        tested first, so a pet that hits both limits on the same tick counts as

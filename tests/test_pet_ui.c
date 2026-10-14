@@ -28,7 +28,7 @@ static int g_fail = 0;
 static void section(const char *name) { printf("\n%s\n", name); }
 
 /* Starve the pet without waiting around in real time. */
-static void kill_pet(pet_t *p) { pet_init(p, 0); pet_tick(p, 200000); }
+static void kill_pet(pet_t *p) { pet_init(p, 0); pet_tick(p, PET_STARVE_MS); }
 
 static void test_initial_state(void)
 {
@@ -164,7 +164,7 @@ static void test_terminal_pet_locks_the_menu(void)
     /* Same again for a pet that ran away instead of starving. */
     { pet_t rp; uint32_t t; bool ran = false;
       pet_init(&rp, 0);
-      for (t = 1000; t <= 900000; t += 1000) {
+      for (t = 1000; t <= (3u * PET_RUNAWAY_MS); t += 1000) {
           pet_tick(&rp, t);
           if (rp.food <= 50) { pet_feed(&rp, 5, t); }
           if (rp.state == PET_RUNAWAY) { ran = true; break; }
@@ -188,7 +188,7 @@ static void test_death_closes_an_open_menu(void)
     (void)pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
     CHECK(pet_ui_screen(&ui) == PET_SCREEN_MENU, "the menu is open");
 
-    pet_tick(&p, 200000);                 /* starves while the menu is up */
+    pet_tick(&p, PET_STARVE_MS);                 /* starves while the menu is up */
     CHECK(!pet_is_interactive(&p), "the pet died in the meantime");
 
     { pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_DOWN, &p);

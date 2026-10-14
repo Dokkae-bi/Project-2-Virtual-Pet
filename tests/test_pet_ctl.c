@@ -47,10 +47,10 @@ static void test_tick_advances_both(void)
     pet_ctl_init(&c, 0);
 
     section("Ticking drives the pet and the animation together");
-    pet_ctl_tick(&c, 20000);
+    pet_ctl_tick(&c, 10 * PET_HAPPINESS_PERIOD_MS);
     CHECK(c.pet.food == 59, "food evolved over 20 s");
     CHECK(c.pet.happiness == 65, "happiness evolved over 20 s");
-    CHECK(c.pet.age_ms == 20000, "the age was recorded");
+    CHECK(c.pet.age_ms == 10 * PET_HAPPINESS_PERIOD_MS, "the age was recorded");
 
     /* Out of the 20 s, an idle animation at 250 ms per frame has been round
        several times and must still be idle. */
@@ -108,19 +108,19 @@ static void test_refused_actions_do_nothing(void)
 
     section("A finished pet refuses everything, and nothing animates");
     pet_ctl_init(&c, 0);
-    pet_ctl_tick(&c, 90000);                 /* starves */
+    pet_ctl_tick(&c, PET_STARVE_MS);                 /* starves */
     CHECK(c.pet.state == PET_DEAD, "the pet has died");
     CHECK(!pet_is_interactive(&c.pet), "and refuses interaction");
 
-    CHECK(!pet_ctl_action(&c, PET_ACTION_FEED, 3, 90000), "feeding is refused");
-    CHECK(!pet_ctl_action(&c, PET_ACTION_PLAY, 3, 90000), "playing is refused");
-    CHECK(!pet_ctl_action(&c, PET_ACTION_CLEAN, 3, 90000), "cleaning is refused");
+    CHECK(!pet_ctl_action(&c, PET_ACTION_FEED, 3, PET_STARVE_MS), "feeding is refused");
+    CHECK(!pet_ctl_action(&c, PET_ACTION_PLAY, 3, PET_STARVE_MS), "playing is refused");
+    CHECK(!pet_ctl_action(&c, PET_ACTION_CLEAN, 3, PET_STARVE_MS), "cleaning is refused");
     CHECK(c.pet.food == PET_STAT_MIN, "the refused actions left the pet unchanged");
     CHECK(c.anim.id == PET_ANIM_IDLE,
           "no action animation was started for the refused actions");
 
     section("An unknown action is refused too");
-    CHECK(!pet_ctl_action(&c, PET_ACTION_NONE, 1, 90000), "PET_ACTION_NONE is not an action");
+    CHECK(!pet_ctl_action(&c, PET_ACTION_NONE, 1, PET_STARVE_MS), "PET_ACTION_NONE is not an action");
 }
 
 static void test_animation_returns_to_idle(void)
@@ -147,7 +147,7 @@ static void test_restart(void)
 
     section("Restart");
     pet_ctl_init(&c, 0);
-    pet_ctl_tick(&c, 90000);
+    pet_ctl_tick(&c, PET_STARVE_MS);
     CHECK(c.pet.state == PET_DEAD, "dead first");
 
     pet_ctl_restart(&c, 95000);

@@ -145,14 +145,14 @@ static void test_selection(void)
     section("A finished life beats any animation still running");
     pet_init(&p, 0);
     pet_anim_start(&a, PET_ANIM_PLAY, 1000);
-    pet_tick(&p, 90000);                /* starved */
+    pet_tick(&p, PET_STARVE_MS);                /* starved */
     CHECK(p.state == PET_DEAD, "pet has died");
     CHECK(pet_anim_select(&p, &a) == PET_ANIM_DEATH,
           "DEATH wins even though PLAY is still running");
 
     { pet_t r; uint32_t t; bool ran = false;
       pet_init(&r, 0);
-      for (t = 1000; t <= 600000; t += 1000) {
+      for (t = 1000; t <= (3u * PET_RUNAWAY_MS); t += 1000) {
           pet_tick(&r, t);
           if (r.food <= 50) { pet_feed(&r, 5, t); }
           if (r.state == PET_RUNAWAY) { ran = true; break; }

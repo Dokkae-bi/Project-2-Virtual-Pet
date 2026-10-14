@@ -35,8 +35,8 @@ over-feeding can push them outside it.
 
 | Stat | Range | Changes over time | Changed by |
 |---|---|---|---|
-| Food | 0–100 | **−1 every 1.2 s** | feeding (+12 per portion), play (−9) |
-| Happiness | 0–100 | **−1 every 2.0 s** | play (+22), clean (+14), feeding (+4) |
+| Food | 0–100 | **−1 every 12 s** | feeding (+12 per portion), play (−9) |
+| Happiness | 0–100 | **−1 every 20 s** | play (+22), clean (+14), feeding (+4) |
 
 **Name and age.** The pet is called Slimey (`PET_HUD_NAME`) and his name is shown
 above him with a day counter, `Day N  HHh`. **One real minute is one game hour**,
@@ -46,7 +46,7 @@ on the statistics.
 
 | Outcome | Trigger | Screen / animation | Restart procedure |
 |---|---|---|---|
-| Death | food reaches 0 — **90 s** of total neglect from the initial 75 | `slime_dead`, collapse animation, loops | joystick CENTER |
+| Death | food reaches 0 — **15 min** of total neglect from the initial 75 | `slime_dead`, collapse animation, loops | joystick CENTER |
 | Runaway | happiness reaches 0 — reached by *feeding enough to stay alive* while happiness drains | `slime_runaway`, drifting animation, loops | joystick CENTER |
 
 Both are terminal: the pet stops accepting actions and its statistics freeze until
@@ -55,6 +55,20 @@ starves it, attentive-but-unfulfilling care makes it run away.
 
 All of these are `#define`s at the top of `Core/Inc/pet_core.h`, so they are
 tuning knobs rather than magic numbers.
+
+**The pace.** At the default rates a neglected pet starves in 15 minutes and runs
+away in 25, which is slow enough to leave it alone between interactions. The demo
+video needs the endings to arrive on camera, so the build takes a multiplier and
+divides both rates by it:
+
+```
+-DPET_RATE_SCALE=8        # death in 1.9 min, runaway in 3.1 min
+```
+
+Dividing both by the same number keeps their ratio, so the two endings stay
+distinguishable at any scale. `PET_STARVE_MS` and `PET_RUNAWAY_MS` are derived
+from the rates, and the tests wait on those rather than on hardcoded seconds, so
+retuning the game does not invalidate them.
 
 ### Actions
 
