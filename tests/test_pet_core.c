@@ -169,13 +169,24 @@ static void test_age_clock(void)
 static void test_play_on_empty_stomach(void)
 {
     pet_t p;
+    int16_t happiness_before_play;
     pet_init(&p, 0);
-    section("Playing when nearly starved");
-    pet_tick(&p, 84000);          /* 70 units of food gone: 75 -> 5 */
-    CHECK(p.food == 5, "food is down to 5");
-    CHECK(pet_play(&p, 84000), "play is still accepted");
-    CHECK(p.food == PET_STAT_MIN, "play cannot push food below 0");
-    CHECK(p.state == PET_ALIVE, "the pet only starves on the next tick, not mid-action");
+    section("A hungry pet refuses play until fed");
+    pet_tick(&p, 78000);          /* 65 units of food gone: 75 -> 10 */
+    happiness_before_play = p.happiness;
+    CHECK(p.food == PET_PLAY_HUNGER_LIMIT, "food reaches the play refusal threshold");
+    CHECK(!pet_play(&p, 78000), "play is refused at food 10");
+    CHECK(p.last_action == PET_ACTION_NONE, "a refused play is not recorded");
+    CHECK(p.action_count[PET_ACTION_PLAY] == 0, "a refused play is not counted");
+    CHECK(p.happiness == happiness_before_play, "a refused play has no effect");
+
+    pet_tick(&p, 79200);
+    CHECK(p.food == PET_PLAY_HUNGER_LIMIT - 1, "food can fall below the refusal threshold");
+    CHECK(!pet_play(&p, 79200), "play remains refused while hungrier");
+
+    CHECK(pet_feed(&p, 1, 79200), "feeding is still accepted during the tantrum");
+    CHECK(p.food > PET_PLAY_HUNGER_LIMIT, "feeding raises food above the threshold");
+    CHECK(pet_play(&p, 79200), "play is accepted again after feeding");
 }
 
 static void test_death_by_neglect(void)

@@ -41,6 +41,7 @@
 #define PET_FEED_PORTION_MAX            5u      /* largest portion */
 #define PET_FEED_FOOD_PER_PORTION       12      /* food added per portion unit */
 #define PET_FEED_HAPPINESS_BONUS        4       /* a good meal is a bit cheering */
+#define PET_PLAY_HUNGER_LIMIT            10      /* play is refused at or below this food level */
 #define PET_PLAY_HAPPINESS_GAIN         22
 #define PET_PLAY_FOOD_COST              9       /* playing works up an appetite */
 #define PET_CLEAN_HAPPINESS_GAIN        14
@@ -110,7 +111,7 @@ void pet_tick(pet_t *pet, uint32_t now_ms);
 /* Feed the pet. portion is clamped to [PET_FEED_PORTION_MIN, MAX]. */
 bool pet_feed(pet_t *pet, uint8_t portion, uint32_t now_ms);
 
-/* Play with the pet: happiness up, and it gets hungrier. */
+/* Play with the pet: happiness up, and it gets hungrier. Refused while hungry. */
 bool pet_play(pet_t *pet, uint32_t now_ms);
 
 /* Clean the pet: happiness up. */

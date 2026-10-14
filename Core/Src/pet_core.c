@@ -142,6 +142,7 @@ bool pet_feed(pet_t *pet, uint8_t portion, uint32_t now_ms)
 
 bool pet_play(pet_t *pet, uint32_t now_ms)
 {
+    if ((pet == NULL) || (pet->food <= PET_PLAY_HUNGER_LIMIT)) { return false; }
     if (!begin_action(pet, PET_ACTION_PLAY, now_ms)) { return false; }
 
     apply_delta(&pet->happiness, +PET_PLAY_HAPPINESS_GAIN);
