@@ -305,7 +305,7 @@ static void MX_I2C1_Init(void)
 
 /**
   * @brief Powers the potentiometer from two GPIO pins, so it needs no wires to
-  *        the 3V3 and GND pins: PF11 drives one end high and PF15 the other
+  *        the 3V3 and GND pins: PE11 drives one end high and PF15 the other
   *        end low. A 10 kOhm pot draws 3.3 V / 10 kOhm = 0.33 mA, far below
   *        what a pin can supply. The wiper is read on PF3 (see MX_ADC3_Init).
   * @retval None
@@ -314,16 +314,20 @@ static void Pot_Supply_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOF_CLK_ENABLE();
 
   /* Set the levels before the pins become outputs, so neither glitches. */
-  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_11, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_11, GPIO_PIN_SET);
   HAL_GPIO_WritePin(GPIOF, GPIO_PIN_15, GPIO_PIN_RESET);
 
-  GPIO_InitStruct.Pin   = GPIO_PIN_11 | GPIO_PIN_15;
+  GPIO_InitStruct.Pin   = GPIO_PIN_11;
   GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull  = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  GPIO_InitStruct.Pin   = GPIO_PIN_15;
   HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 }
 
