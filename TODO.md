@@ -80,7 +80,7 @@ sensor". Still to do on it, once the headers are soldered:
 the Feed portion, 1–5.** Wiring and behaviour are in README §2 "Potentiometer".
 Still to do on it, once the headers are soldered:
 
-- [ ] wire it (README table: ends to 3V3/GND, wiper to `PF3`, **never 5 V**)
+- [ ] wire it (README table: ends to `PF11` (high) and `PF15` (low), wiper to `PF3`, **never 5 V**)
 - [ ] turning the knob end to end steps the number beside Feed through 1–5
 - [ ] the number does not flicker with the knob resting near a band edge
 - [ ] Feed at portion 1 and at portion 5 → food rises by 12 and by 60

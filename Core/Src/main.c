@@ -91,6 +91,7 @@ static bool Shake_Poll(uint32_t now);
 static void Shake_Offline(uint32_t now);
 static void I2C1_Recover(void);
 static void MX_ADC3_Init(void);
+static void Pot_Supply_Init(void);
 static void Pot_Poll(uint32_t now);
 /* USER CODE END PFP */
 
@@ -303,6 +304,30 @@ static void MX_I2C1_Init(void)
 }
 
 /**
+  * @brief Powers the potentiometer from two GPIO pins, so it needs no wires to
+  *        the 3V3 and GND pins: PF11 drives one end high and PF15 the other
+  *        end low. A 10 kOhm pot draws 3.3 V / 10 kOhm = 0.33 mA, far below
+  *        what a pin can supply. The wiper is read on PF3 (see MX_ADC3_Init).
+  * @retval None
+  */
+static void Pot_Supply_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+  __HAL_RCC_GPIOF_CLK_ENABLE();
+
+  /* Set the levels before the pins become outputs, so neither glitches. */
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_11, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_15, GPIO_PIN_RESET);
+
+  GPIO_InitStruct.Pin   = GPIO_PIN_11 | GPIO_PIN_15;
+  GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull  = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+}
+
+/**
   * @brief ADC3 Initialization Function - the feeding-portion potentiometer.
   *        PF3 = ADC3_IN6, 12-bit, single software-triggered conversion.
   *
@@ -410,6 +435,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   MX_I2C1_Init();
+  Pot_Supply_Init();
   MX_ADC3_Init();
   pet_pot_init(&g_pot);
 

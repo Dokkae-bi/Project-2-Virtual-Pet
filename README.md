@@ -174,14 +174,17 @@ How it works:
 
 | Pot pin | Connect to |
 |---|---|
-| one end | 3V3 |
-| other end | GND |
+| one end | `PF11` (driven high = 3.3 V by the firmware) |
+| other end | `PF15` (driven low = 0 V by the firmware) |
 | wiper (middle) | `PF3` |
 
 `PF3` is used because `PA3` (the obvious A0) is taken by the display board, and
 the ports D and E pins have no ADC. Confirm where `PF3` sits on your board in
 UM2179 before wiring, and **never connect the pot to 5 V**: the ADC pin's limit is the
-3.3 V supply. Swap the two end wires if you want the knob to run the other way.
+3.3 V supply. The pot is powered from `PF11` and `PF15` instead of the 3V3 and GND
+pins (`Pot_Supply_Init` in `main.c`): the pot draws only 0.33 mA, well within what a
+pin can supply. For the final build you can wire the ends to real 3V3 and GND and
+drop that function. Swap the two end wires if you want the knob to run the other way.
 
 How it works:
 
