@@ -204,7 +204,7 @@ Same pattern for the others:
 | `test_pet_pot` | `pet_pot.c` |
 | `test_ui_text` | `gfx_font5x7.c pet_ui.c pet_core.c`, plus `-I Drivers/BSP/GFX01M2` |
 
-Expected totals: **60 / 54 / 38 / 60 / 27 / 49 / 39 / 16 / 11 / 17 / 26 = 400 checks.**
+Expected totals: **60 / 54 / 38 / 60 / 27 / 52 / 39 / 16 / 11 / 17 / 26 = 400 checks.**
 
 **Firmware build** — use the STM32 VS Code extension, or:
 
