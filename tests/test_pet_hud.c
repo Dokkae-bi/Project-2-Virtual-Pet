@@ -132,6 +132,16 @@ static void test_flash_cost(void)
     CHECK(icon_bytes * 2u < 4096u, "both HUD icons cost under 4 KB of flash");
 }
 
+static void test_readout_area(void)
+{
+    section("Meter readout area");
+    /* The number is redrawn over the old one, so the cleared area has to be
+       wide enough for the widest value: "100" is 3 characters. */
+    CHECK(PET_HUD_READOUT_W >= 3u * 6u * PET_HUD_TEXT_SCALE, "wide enough for \"100\"");
+    CHECK(PET_HUD_READOUT_X >= PET_HUD_TRACK_X + PET_HUD_TRACK_W, "starts right of the bar");
+    CHECK(PET_HUD_READOUT_X + PET_HUD_READOUT_W <= PET_HUD_SCREEN_W, "fits on the screen");
+}
+
 static void test_name_and_age_text(void)
 {
     pet_t p;
@@ -170,6 +180,7 @@ int main(void)
     test_layout_fits();
     test_flash_cost();
     test_name_and_age_text();
+    test_readout_area();
 
     printf("\n----------------------------------------\n");
     printf("%d passed, %d failed\n", g_pass, g_fail);

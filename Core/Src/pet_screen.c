@@ -34,9 +34,6 @@ static struct {
     bool          valid;
 } g_drawn;
 
-/* X where the numeric readout starts, just right of the bar. */
-#define READOUT_X  (PET_HUD_TRACK_X + PET_HUD_TRACK_W + 4u)
-
 static void draw_meter(uint16_t row_y, const uint16_t *icon, int16_t value)
 {
     char      text[8];
@@ -56,7 +53,11 @@ static void draw_meter(uint16_t row_y, const uint16_t *icon, int16_t value)
     }
 
     (void)snprintf(text, sizeof(text), "%d", (int)value);
-    ILI9341_DrawString(READOUT_X, (uint16_t)(row_y + 4u), text,
+    /* Clear the old number first: "99" drawn over "100" would leave the last 0
+       behind and read as "990". */
+    ILI9341_FillRect(PET_HUD_READOUT_X, (uint16_t)(row_y + 4u), PET_HUD_READOUT_W,
+                     14u, PET_HUD_COL_PANEL);
+    ILI9341_DrawString(PET_HUD_READOUT_X, (uint16_t)(row_y + 4u), text,
                        PET_HUD_COL_TEXT, PET_HUD_COL_PANEL, PET_HUD_TEXT_SCALE);
 }
 

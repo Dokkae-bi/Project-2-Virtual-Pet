@@ -1,7 +1,7 @@
 # Project 2 — what's left to do
 
 **As of 2026-10-13.** The pet runs. `main.c` starts it, the joystick drives the
-menu, and the sprite, both meters and the menu are drawn on the panel. **397 host
+menu, and the sprite, both meters and the menu are drawn on the panel. **400 host
 checks pass with no board attached.**
 
 Both required peripherals are in the code (the MPU-6050 on I2C and the potentiometer
@@ -24,7 +24,7 @@ it on hardware.
 | `pet_screen` | draws the screen — the only HAL-facing pet module |
 | `main.c` | starts the pet, reads the joystick, runs the loop |
 | `sprites/` | 7 slime states + 2 HUD icons, all converted |
-| `tests/` | 397 checks across 11 suites, all passing |
+| `tests/` | 400 checks across 11 suites, all passing |
 | `tools/png_to_rgb565.py` | the artwork converter, re-runnable |
 | `Drivers/BSP/GFX01M2/ili9341.c` | added `ILI9341_DrawBitmap` — the supplied BSP had no way to draw an image |
 
@@ -204,7 +204,7 @@ Same pattern for the others:
 | `test_pet_pot` | `pet_pot.c` |
 | `test_ui_text` | `gfx_font5x7.c pet_ui.c pet_core.c`, plus `-I Drivers/BSP/GFX01M2` |
 
-Expected totals: **60 / 54 / 38 / 60 / 27 / 49 / 39 / 16 / 11 / 17 / 26 = 397 checks.**
+Expected totals: **60 / 54 / 38 / 60 / 27 / 49 / 39 / 16 / 11 / 17 / 26 = 400 checks.**
 
 **Firmware build** — use the STM32 VS Code extension, or:
 

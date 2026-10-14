@@ -6,7 +6,7 @@ Tamagotchi-style virtual pet running on a **NUCLEO-L496ZG-P** with an
 > **Status:** **the pet runs.** `main.c` starts it, the joystick drives the menu,
 > and the sprite, both meters and the menu are drawn on the panel. Shaking the
 > MPU-6050 (I2C) plays with the pet, and a potentiometer (ADC) sets how much it
-> eats. 397 host checks pass with no board attached. What's left is the hardware
+> eats. 400 host checks pass with no board attached. What's left is the hardware
 > verification — **see
 > [`TODO.md`](TODO.md)**.
 
@@ -251,7 +251,7 @@ VirtualPet/
 ├── Middlewares/                ST USB host library (compiled, NOT initialised)
 ├── USB_HOST/                   USB host application (unused — see PA9 warning)
 ├── sprites/                    generated RGB565 assets + preview PNGs
-├── tests/                      397 host checks, run on a PC with no board
+├── tests/                      400 host checks, run on a PC with no board
 ├── tools/
 │   └── png_to_rgb565.py        artwork → RGB565 converter
 └── docs/
@@ -377,13 +377,13 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 | `test_pet_render` | 38 |
 | `test_pet_ui` | 60 |
 | `test_pet_view` | 27 |
-| `test_pet_hud` | 49 |
+| `test_pet_hud` | 52 |
 | `test_pet_ctl` | 39 |
 | `test_pet_shake` | 16 |
 | `test_mpu6050_regs` | 11 |
 | `test_pet_pot` | 17 |
 | `test_ui_text` | 26 |
-| **Total** | **397** |
+| **Total** | **400** |
 
 ---
 
