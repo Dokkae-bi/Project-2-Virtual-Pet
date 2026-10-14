@@ -30,7 +30,7 @@
 
 /* +1 if a positive X reading should slide the slime right, -1 if left. Depends on
  * which way the board is mounted; flip it if the slime goes the wrong way. */
-#define PET_TILT_DIR          1
+#define PET_TILT_DIR         -1
 
 typedef struct {
     int16_t  x;         /* the slime's left edge, in pixels */
