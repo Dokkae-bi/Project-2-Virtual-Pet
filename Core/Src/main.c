@@ -62,11 +62,11 @@ static pet_ui_t  g_ui;
    is what the pet actually gets. */
 static uint8_t g_portion = PET_FEED_PORTION_MIN;
 
-/* Potentiometer on PA3 (ADC1_IN8). Kept in a USER CODE block for the same
-   reason as hi2c1: the .ioc does not know about ADC1. */
+/* Potentiometer on PF3 (ADC3_IN6). Kept in a USER CODE block for the same
+   reason as hi2c1: the .ioc does not know about ADC3. */
 #define POT_SAMPLE_MS    20u     /* 50 Hz: faster than a hand turns a knob */
 #define POT_TIMEOUT_MS   2u      /* one conversion takes ~7 us */
-ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc3;
 static pet_pot_t  g_pot;
 static uint32_t   g_pot_next_ms = 0u;
 
@@ -90,7 +90,7 @@ static pet_input_t Input_Read(void);
 static bool Shake_Poll(uint32_t now);
 static void Shake_Offline(uint32_t now);
 static void I2C1_Recover(void);
-static void MX_ADC1_Init(void);
+static void MX_ADC3_Init(void);
 static void Pot_Poll(uint32_t now);
 /* USER CODE END PFP */
 
@@ -303,50 +303,50 @@ static void MX_I2C1_Init(void)
 }
 
 /**
-  * @brief ADC1 Initialization Function - the feeding-portion potentiometer.
-  *        PA3 = ADC1_IN8, 12-bit, single software-triggered conversion.
+  * @brief ADC3 Initialization Function - the feeding-portion potentiometer.
+  *        PF3 = ADC3_IN6, 12-bit, single software-triggered conversion.
   *
   * Clock: SYSCLK 56.8 MHz / 4 = 14.2 MHz. Sampling 92.5 cycles (6.5 us) is
   * plenty for a 10 kOhm pot; a conversion is (92.5 + 12.5) / 14.2 MHz = 7.4 us.
   * Calibrated once at start-up, as RM0351 requires before the first conversion.
   * @retval None
   */
-static void MX_ADC1_Init(void)
+static void MX_ADC3_Init(void)
 {
   ADC_ChannelConfTypeDef sConfig = {0};
 
-  hadc1.Instance                   = ADC1;
-  hadc1.Init.ClockPrescaler        = ADC_CLOCK_ASYNC_DIV4;
-  hadc1.Init.Resolution            = ADC_RESOLUTION_12B;
-  hadc1.Init.DataAlign             = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode          = ADC_SCAN_DISABLE;
-  hadc1.Init.EOCSelection          = ADC_EOC_SINGLE_CONV;
-  hadc1.Init.LowPowerAutoWait      = DISABLE;
-  hadc1.Init.ContinuousConvMode    = DISABLE;
-  hadc1.Init.NbrOfConversion       = 1;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConv      = ADC_SOFTWARE_START;
-  hadc1.Init.ExternalTrigConvEdge  = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.Overrun               = ADC_OVR_DATA_OVERWRITTEN;
-  hadc1.Init.OversamplingMode      = DISABLE;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  hadc3.Instance                   = ADC3;
+  hadc3.Init.ClockPrescaler        = ADC_CLOCK_ASYNC_DIV4;
+  hadc3.Init.Resolution            = ADC_RESOLUTION_12B;
+  hadc3.Init.DataAlign             = ADC_DATAALIGN_RIGHT;
+  hadc3.Init.ScanConvMode          = ADC_SCAN_DISABLE;
+  hadc3.Init.EOCSelection          = ADC_EOC_SINGLE_CONV;
+  hadc3.Init.LowPowerAutoWait      = DISABLE;
+  hadc3.Init.ContinuousConvMode    = DISABLE;
+  hadc3.Init.NbrOfConversion       = 1;
+  hadc3.Init.DiscontinuousConvMode = DISABLE;
+  hadc3.Init.ExternalTrigConv      = ADC_SOFTWARE_START;
+  hadc3.Init.ExternalTrigConvEdge  = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc3.Init.DMAContinuousRequests = DISABLE;
+  hadc3.Init.Overrun               = ADC_OVR_DATA_OVERWRITTEN;
+  hadc3.Init.OversamplingMode      = DISABLE;
+  if (HAL_ADC_Init(&hadc3) != HAL_OK)
   {
     Error_Handler();
   }
 
-  sConfig.Channel      = ADC_CHANNEL_8;
+  sConfig.Channel      = ADC_CHANNEL_6;
   sConfig.Rank         = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_92CYCLES_5;
   sConfig.SingleDiff   = ADC_SINGLE_ENDED;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset       = 0;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  if (HAL_ADC_ConfigChannel(&hadc3, &sConfig) != HAL_OK)
   {
     Error_Handler();
   }
 
-  if (HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED) != HAL_OK)
+  if (HAL_ADCEx_Calibration_Start(&hadc3, ADC_SINGLE_ENDED) != HAL_OK)
   {
     Error_Handler();
   }
@@ -360,7 +360,7 @@ static void MX_ADC1_Init(void)
   * so the menu only redraws when the knob has really moved.
   *
   * A failed conversion keeps the last portion: Feed still works, it just can't
-  * be resized until the ADC answers again. A disconnected wiper leaves PA3
+  * be resized until the ADC answers again. A disconnected wiper leaves PF3
   * floating, which reads as a random portion - check the wiring if the number
   * wanders on its own.
   */
@@ -372,20 +372,20 @@ static void Pot_Poll(uint32_t now)
   }
   g_pot_next_ms = now + POT_SAMPLE_MS;
 
-  if (HAL_ADC_Start(&hadc1) != HAL_OK)
+  if (HAL_ADC_Start(&hadc3) != HAL_OK)
   {
     return;
   }
-  if (HAL_ADC_PollForConversion(&hadc1, POT_TIMEOUT_MS) == HAL_OK)
+  if (HAL_ADC_PollForConversion(&hadc3, POT_TIMEOUT_MS) == HAL_OK)
   {
-    const uint8_t portion = pet_pot_update(&g_pot, (uint16_t)HAL_ADC_GetValue(&hadc1));
+    const uint8_t portion = pet_pot_update(&g_pot, (uint16_t)HAL_ADC_GetValue(&hadc3));
     if (portion != g_portion)
     {
       g_portion = portion;
       pet_ui_set_portion(&g_ui, portion);
     }
   }
-  (void)HAL_ADC_Stop(&hadc1);
+  (void)HAL_ADC_Stop(&hadc3);
 }
 /* USER CODE END 0 */
 
@@ -410,7 +410,7 @@ int main(void)
 
   /* USER CODE BEGIN 2 */
   MX_I2C1_Init();
-  MX_ADC1_Init();
+  MX_ADC3_Init();
   pet_pot_init(&g_pot);
 
   pet_ctl_init(&g_pet, HAL_GetTick());

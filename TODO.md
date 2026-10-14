@@ -76,15 +76,15 @@ sensor". Still to do on it, once the headers are soldered:
       compare with `mpu6050_who_am_i_ok()`; otherwise check SDA/SCL aren't swapped.
       The I2C `TIMING` value `0x60420F13` is calculated, not yet measured.
 
-**The analog input is done in code too: a potentiometer on `PA3` (ADC1_IN8) sets
+**The analog input is done in code too: a potentiometer on `PF3` (ADC3_IN6) sets
 the Feed portion, 1–5.** Wiring and behaviour are in README §2 "Potentiometer".
 Still to do on it, once the headers are soldered:
 
-- [ ] wire it (README table: ends to 3V3/GND, wiper to `PA3`, **never 5 V**)
+- [ ] wire it (README table: ends to 3V3/GND, wiper to `PF3`, **never 5 V**)
 - [ ] turning the knob end to end steps the number beside Feed through 1–5
 - [ ] the number does not flicker with the knob resting near a band edge
 - [ ] Feed at portion 1 and at portion 5 → food rises by 12 and by 60
-- [ ] if it stays on 1 whatever the knob does: check the wiper is on `PA3` and
+- [ ] if it stays on 1 whatever the knob does: check the wiper is on `PF3` and
       read `HAL_ADC_GetValue` under the debugger — it should run 0 to ~4095
 
 On the **digital device on a bus**: a bare 7-segment display is GPIO, not a bus
@@ -172,7 +172,7 @@ first hardware session as a bring-up, not a formality.
    `cmake/stm32cubemx/CMakeLists.txt`.
 9. ⚠️ **Regenerating `main.c` from CubeMX will wipe the pet integration.** The pet
    code now sits inside `USER CODE BEGIN/END` blocks, which CubeMX preserves — but
-   only if it regenerates cleanly. **Back up `main.c` before enabling ADC1 or I2C1
+   only if it regenerates cleanly. **Back up `main.c` before enabling ADC3 or I2C1
    in CubeMX**, then diff afterwards. Losing the main loop to a regeneration is an
    easy afternoon gone.
 10. **Any character outside space..`z` (and `#$%&*>@`) draws blank.**
