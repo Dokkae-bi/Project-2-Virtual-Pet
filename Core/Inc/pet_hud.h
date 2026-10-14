@@ -57,6 +57,18 @@ typedef enum {
     PET_METER_HAPPINESS
 } pet_meter_t;
 
+/* --- text -------------------------------------------------------------- */
+
+/* All UI text is drawn at this size: 5x7 glyphs become 10x14, 12 px apart. */
+#define PET_HUD_TEXT_SCALE      2u
+
+/* Ending screen, drawn in the lower block. Kept here (not in pet_screen.c)
+ * so tests/test_ui_text.c can check they are drawable and fit. */
+#define PET_HUD_TEXT_STARVED    "Your pet starved"
+#define PET_HUD_TEXT_RAN_AWAY   "Your pet ran away"
+#define PET_HUD_TEXT_RESTART1   "Press select"
+#define PET_HUD_TEXT_RESTART2   "to restart"
+
 /*
  * Meter colours as RGB565. The first two are already in the project palette in
  * docs/pet-design.md; the red is new and only used for the critical band.
