@@ -53,6 +53,7 @@ void pet_init(pet_t *pet, uint32_t now_ms)
     pet->food         = PET_INIT_FOOD;
     pet->happiness    = PET_INIT_HAPPINESS;
     pet->state        = PET_ALIVE;
+    pet->sleeping     = false;
     pet->last_action  = PET_ACTION_NONE;
     pet->last_tick_ms = now_ms;
 
@@ -67,6 +68,11 @@ void pet_restart(pet_t *pet, uint32_t now_ms)
 bool pet_is_interactive(const pet_t *pet)
 {
     return (pet != NULL) && (pet->state == PET_ALIVE);
+}
+
+bool pet_is_sleeping(const pet_t *pet)
+{
+    return (pet != NULL) && pet->sleeping && (pet->state == PET_ALIVE);
 }
 
 uint32_t pet_age_day(const pet_t *pet)
@@ -96,18 +102,28 @@ void pet_tick(pet_t *pet, uint32_t now_ms)
 
     pet->age_ms += dt;
 
-    advance_by_time(&pet->food,      &pet->food_accum_ms,      dt,
-                    PET_FOOD_MS_PER_UNIT,      -1);
-    advance_by_time(&pet->happiness, &pet->happiness_accum_ms, dt,
-                    PET_HAPPINESS_MS_PER_UNIT, -1);
+    if (pet->sleeping) {
+        /* Rest: food still drains (slower); happiness recovers. */
+        advance_by_time(&pet->food,      &pet->food_accum_ms,      dt,
+                        PET_SLEEP_FOOD_MS_PER_UNIT,      -1);
+        advance_by_time(&pet->happiness, &pet->happiness_accum_ms, dt,
+                        PET_SLEEP_HAPPINESS_MS_PER_UNIT, +1);
+    } else {
+        advance_by_time(&pet->food,      &pet->food_accum_ms,      dt,
+                        PET_FOOD_MS_PER_UNIT,      -1);
+        advance_by_time(&pet->happiness, &pet->happiness_accum_ms, dt,
+                        PET_HAPPINESS_MS_PER_UNIT, -1);
+    }
 
     /* Check the terminal conditions after updating the statistics. Food is
        tested first, so a pet that hits both limits on the same tick counts as
        having starved. */
     if (pet->food <= PET_STAT_MIN) {
-        pet->state = PET_DEAD;
+        pet->state    = PET_DEAD;
+        pet->sleeping = false;
     } else if (pet->happiness <= PET_STAT_MIN) {
-        pet->state = PET_RUNAWAY;
+        pet->state    = PET_RUNAWAY;
+        pet->sleeping = false;
     }
 }
 
@@ -128,6 +144,9 @@ static bool begin_action(pet_t *pet, pet_action_t action, uint32_t now_ms)
 
 bool pet_feed(pet_t *pet, uint8_t portion, uint32_t now_ms)
 {
+    if (!pet_is_interactive(pet)) { return false; }
+    pet_wake(pet, now_ms);
+
     if (!begin_action(pet, PET_ACTION_FEED, now_ms)) { return false; }
 
     /* Clamp the ADC portion rather than rejecting it, so a noisy or out of range
@@ -142,7 +161,10 @@ bool pet_feed(pet_t *pet, uint8_t portion, uint32_t now_ms)
 
 bool pet_play(pet_t *pet, uint32_t now_ms)
 {
+    /* Hunger tantrum: refuse Play when food is too low. */
     if ((pet == NULL) || (pet->food <= PET_PLAY_HUNGER_LIMIT)) { return false; }
+    pet_wake(pet, now_ms);
+
     if (!begin_action(pet, PET_ACTION_PLAY, now_ms)) { return false; }
 
     apply_delta(&pet->happiness, +PET_PLAY_HAPPINESS_GAIN);
@@ -152,10 +174,35 @@ bool pet_play(pet_t *pet, uint32_t now_ms)
 
 bool pet_clean(pet_t *pet, uint32_t now_ms)
 {
+    if (!pet_is_interactive(pet)) { return false; }
+    pet_wake(pet, now_ms);
+
     if (!begin_action(pet, PET_ACTION_CLEAN, now_ms)) { return false; }
 
     apply_delta(&pet->happiness, +PET_CLEAN_HAPPINESS_GAIN);
     return true;
+}
+
+bool pet_sleep(pet_t *pet, uint32_t now_ms)
+{
+    if (!pet_is_interactive(pet) || pet->sleeping) { return false; }
+
+    if (!begin_action(pet, PET_ACTION_SLEEP, now_ms)) { return false; }
+
+    pet->sleeping           = true;
+    pet->food_accum_ms      = 0u;
+    pet->happiness_accum_ms = 0u;
+    return true;
+}
+
+void pet_wake(pet_t *pet, uint32_t now_ms)
+{
+    (void)now_ms;
+    if (pet == NULL || !pet->sleeping) { return; }
+
+    pet->sleeping           = false;
+    pet->food_accum_ms      = 0u;
+    pet->happiness_accum_ms = 0u;
 }
 
 pet_mood_t pet_mood(const pet_t *pet)
@@ -200,6 +247,7 @@ const char *pet_action_name(pet_action_t action)
         case PET_ACTION_FEED:  return "FEED";
         case PET_ACTION_PLAY:  return "PLAY";
         case PET_ACTION_CLEAN: return "CLEAN";
+        case PET_ACTION_SLEEP: return "SLEEP";
         default:               return "?";
     }
 }

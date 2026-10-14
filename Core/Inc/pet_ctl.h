@@ -49,6 +49,9 @@ void pet_ctl_tick(pet_ctl_t *ctl, uint32_t now_ms);
 bool pet_ctl_action(pet_ctl_t *ctl, pet_action_t action, uint8_t portion,
                     uint32_t now_ms);
 
+/* Wake without a care action (menu Wake). Returns the pet to idle. */
+void pet_ctl_wake(pet_ctl_t *ctl, uint32_t now_ms);
+
 /* Bring a finished pet back, and play the re-forming animation. */
 void pet_ctl_restart(pet_ctl_t *ctl, uint32_t now_ms);
 

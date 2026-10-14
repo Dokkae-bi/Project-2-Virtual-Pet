@@ -110,18 +110,24 @@ static void test_every_row_commits_its_action(void)
         r = pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
 
         printf("         row %u: %-6s -> %s\n", i,
-               pet_ui_item_label(i), pet_action_name(r.action));
-        CHECK(r.action == pet_ui_item_action(i), "the action matches the row");
+               pet_ui_item_label(i, &p), pet_action_name(r.action));
+        CHECK(r.action == pet_ui_item_action(i, &p), "the action matches the row");
         CHECK(r.action != PET_ACTION_NONE, "the row does a real action");
+        CHECK(!r.wake, "awake rows are not wake-only");
         CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "it goes back to the pet screen");
         CHECK(!r.restart, "confirming isn't a restart");
     }
 
-    section("The menu has the three required interactions");
-    CHECK(pet_ui_item_count() == 3, "three actions on the menu");
-    CHECK(pet_ui_item_action(0) == PET_ACTION_FEED,  "Feed is on it");
-    CHECK(pet_ui_item_action(1) == PET_ACTION_PLAY,  "Play is on it");
-    CHECK(pet_ui_item_action(2) == PET_ACTION_CLEAN, "Clean is on it");
+    section("The menu has the three required interactions plus Sleep");
+    {
+        pet_t awake;
+        pet_init(&awake, 0);
+        CHECK(pet_ui_item_count() == 4, "four actions on the menu");
+        CHECK(pet_ui_item_action(0, &awake) == PET_ACTION_FEED,  "Feed is on it");
+        CHECK(pet_ui_item_action(1, &awake) == PET_ACTION_PLAY,  "Play is on it");
+        CHECK(pet_ui_item_action(2, &awake) == PET_ACTION_CLEAN, "Clean is on it");
+        CHECK(pet_ui_item_action(3, &awake) == PET_ACTION_SLEEP, "Sleep is on it");
+    }
 }
 
 static void test_cancel(void)
@@ -216,19 +222,73 @@ static void test_portion(void)
 static void test_labels_are_usable(void)
 {
     uint8_t i;
+    pet_t p;
 
     section("Menu labels are there and all different");
+    pet_init(&p, 0);
     for (i = 0; i < pet_ui_item_count(); i++) {
-        const char *a = pet_ui_item_label(i);
+        const char *a = pet_ui_item_label(i, &p);
         uint8_t k;
         CHECK(a != NULL && a[0] != '\0', "the row has a label");
         for (k = 0; k < i; k++) {
-            const char *b = pet_ui_item_label(k);
+            const char *b = pet_ui_item_label(k, &p);
             CHECK(strcmp(a, b) != 0, "the labels aren't the same");
         }
     }
-    CHECK(pet_ui_item_label(200) != NULL, "a row number out of range clamps, doesn't return NULL");
-    CHECK(pet_ui_item_action(200) == PET_ACTION_NONE, "a row number out of range has no action");
+    CHECK(pet_ui_item_label(200, &p) != NULL, "a row number out of range clamps, doesn't return NULL");
+    CHECK(pet_ui_item_action(200, &p) == PET_ACTION_NONE, "a row number out of range has no action");
+}
+
+static void test_sleep_menu(void)
+{
+    pet_ui_t ui;
+    pet_t p;
+
+    section("Sleep from the menu");
+    pet_ui_init(&ui);
+    pet_init(&p, 0);
+    (void)pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
+    (void)pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
+    (void)pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
+    (void)pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
+    {
+        pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
+        CHECK(r.action == PET_ACTION_SLEEP, "the Sleep row commits SLEEP");
+        CHECK(!r.wake, "Sleep is not wake-only while awake");
+    }
+
+    section("While asleep SELECT still opens the menu");
+    CHECK(pet_sleep(&p, 1000), "pet is sleeping");
+    pet_ui_init(&ui);
+    {
+        pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
+        CHECK(pet_ui_screen(&ui) == PET_SCREEN_MENU, "select opens the menu while asleep");
+        CHECK(r.action == PET_ACTION_NONE && !r.wake && !r.restart,
+              "opening the menu does not wake or act");
+        CHECK(strcmp(pet_ui_item_label(3, &p), "Wake") == 0, "the Sleep row reads Wake");
+    }
+
+    section("Wake row wakes without a care action");
+    (void)pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
+    (void)pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
+    (void)pet_ui_handle(&ui, PET_INPUT_DOWN, &p);
+    {
+        pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
+        CHECK(r.wake, "Wake sets the wake flag");
+        CHECK(r.action == PET_ACTION_NONE, "Wake is not a care action");
+        CHECK(pet_ui_screen(&ui) == PET_SCREEN_PET, "back on the pet screen");
+    }
+
+    section("Feed from the asleep menu commits FEED");
+    /* Still sleeping: the Wake result was not applied to the model here. */
+    CHECK(pet_is_sleeping(&p), "still asleep for the Feed check");
+    pet_ui_init(&ui);
+    (void)pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
+    {
+        pet_ui_result_t r = pet_ui_handle(&ui, PET_INPUT_SELECT, &p);
+        CHECK(r.action == PET_ACTION_FEED, "Feed is still committed while asleep");
+        CHECK(!r.wake, "Feed is not the wake-only path");
+    }
 }
 
 int main(void)
@@ -244,6 +304,7 @@ int main(void)
     test_death_closes_an_open_menu();
     test_portion();
     test_labels_are_usable();
+    test_sleep_menu();
 
     printf("\n----------------------------------------\n");
     printf("%d passed, %d failed\n", g_pass, g_fail);

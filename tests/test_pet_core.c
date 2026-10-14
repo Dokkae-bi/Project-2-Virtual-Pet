@@ -273,6 +273,53 @@ static void test_mood(void)
       CHECK(pet_mood(&p2) == PET_MOOD_MISERABLE, "miserable once happiness drops low"); }
 }
 
+static void test_sleep(void)
+{
+    pet_t p;
+
+    section("Sleep enter / refuse");
+    pet_init(&p, 0);
+    CHECK(!pet_is_sleeping(&p), "a new pet is awake");
+    CHECK(pet_sleep(&p, 1000), "sleep is accepted");
+    CHECK(pet_is_sleeping(&p), "the pet is sleeping");
+    CHECK(p.last_action == PET_ACTION_SLEEP, "sleep is recorded");
+    CHECK(!pet_sleep(&p, 2000), "a second sleep is refused");
+    CHECK(pet_is_sleeping(&p), "still sleeping after the refused second sleep");
+
+    section("While asleep food drains slowly and happiness recovers");
+    pet_init(&p, 0);
+    CHECK(pet_sleep(&p, 0), "goes to sleep");
+    pet_tick(&p, 24000);   /* 10 food units at 2400 ms, 12 happiness at 2000 ms */
+    CHECK(p.food == PET_INIT_FOOD - 10, "food fell by 10 over 24 s asleep");
+    CHECK(p.happiness == PET_INIT_HAPPINESS + 12, "happiness rose by 12 over 24 s asleep");
+    CHECK(pet_is_sleeping(&p), "still asleep after the nap");
+
+    section("Wake, and care actions wake then apply");
+    pet_wake(&p, 25000);
+    CHECK(!pet_is_sleeping(&p), "wake clears sleeping");
+    CHECK(pet_sleep(&p, 26000), "can sleep again after waking");
+    CHECK(pet_feed(&p, 1, 27000), "feed is accepted while asleep");
+    CHECK(!pet_is_sleeping(&p), "feed woke the pet");
+    CHECK(p.food == (PET_INIT_FOOD - 10) + PET_FEED_FOOD_PER_PORTION,
+          "feed still added food after waking");
+
+    pet_init(&p, 0);
+    CHECK(pet_sleep(&p, 0), "asleep for play");
+    CHECK(pet_play(&p, 1000), "play is accepted while asleep");
+    CHECK(!pet_is_sleeping(&p), "play woke the pet");
+    CHECK(p.happiness == PET_INIT_HAPPINESS + PET_PLAY_HAPPINESS_GAIN,
+          "play still raised happiness");
+
+    section("Can starve in bed; restart clears sleep");
+    pet_init(&p, 0);
+    CHECK(pet_sleep(&p, 0), "asleep before a long neglect");
+    pet_tick(&p, 75u * PET_SLEEP_FOOD_MS_PER_UNIT);
+    CHECK(p.state == PET_DEAD, "starved while sleeping");
+    CHECK(!pet_is_sleeping(&p), "death clears sleeping");
+    pet_restart(&p, 1);
+    CHECK(!pet_is_sleeping(&p), "restart starts awake");
+}
+
 int main(void)
 {
     printf("pet_core tests\n");
@@ -292,6 +339,7 @@ int main(void)
     test_runaway_by_feeding();
     test_restart();
     test_mood();
+    test_sleep();
 
     printf("\n----------------------------------------\n");
     printf("%d passed, %d failed\n", g_pass, g_fail);

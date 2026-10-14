@@ -62,9 +62,9 @@ Only the three action animations need `pet_render.c` scaling; Feed additionally
 uses one of the seven drawn sprites. No animation frames are stored as artwork,
 which is what keeps the flash cost at 56 KB instead of 221 KB — see §8.
 
-**Not yet implemented:** triggering Play directly from the accelerometer (shake or
-tilt) instead of via the menu, and the buzzer. Both are optional over the brief's
-requirements, and neither is wired up.
+**Implemented beyond the brief:** shake-to-Play (MPU-6050), potentiometer Feed
+portion, and menu **Sleep** / **Wake** (happiness recovers while food drains
+slowly; night tint). **Not yet implemented:** PWM buzzer.
 
 ### Peripherals covered
 
@@ -112,7 +112,7 @@ superseded where the two disagree.
 | Stage | y 0–179 | the slime, centred, 64×64 or 96×96 | blit the sprite region only |
 | Food meter | y 184–196 | 160×12 bar + label | redraw **changed segment only** |
 | Happiness meter | y 200–212 | 160×12 bar + label | redraw **changed segment only** |
-| Menu | y 220–319 | three action items, selected one highlighted | redraw on selection change only |
+| Menu | y 240–319 | four action items (Feed/Play/Clean/Sleep↔Wake) | redraw on selection change only |
 
 Meters and menu are drawn with `ILI9341_FillRect` and `ILI9341_DrawString` — they
 need **no artwork**.
@@ -182,7 +182,8 @@ of flash is left unused.
 | User button B1 wired to `PET_INPUT_BACK` | ❌ not wired up |
 | I2C input: MPU-6050 shake → Play (`pet_shake`, `mpu6050`) | ✅ implemented, 27 host checks — not yet on hardware |
 | Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, 17 host checks — not yet on hardware |
+| Sleep / night (menu Sleep, wake paths, night tint) | ✅ implemented — not yet on hardware |
 | Verified on real hardware | ❌ blocked on the unsoldered headers |
 
-**433 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
+**501 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
 still outstanding.

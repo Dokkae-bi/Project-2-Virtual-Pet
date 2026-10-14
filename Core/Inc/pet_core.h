@@ -31,6 +31,10 @@
 #define PET_FOOD_MS_PER_UNIT            1200u   /* -1 food      every 1.2 s */
 #define PET_HAPPINESS_MS_PER_UNIT       2000u   /* -1 happiness every 2.0 s */
 
+/* While asleep: food still drains (slower), happiness recovers. */
+#define PET_SLEEP_FOOD_MS_PER_UNIT      2400u   /* -1 food      every 2.4 s */
+#define PET_SLEEP_HAPPINESS_MS_PER_UNIT 2000u   /* +1 happiness every 2.0 s */
+
 /* Age clock: 1 real minute is 1 game hour. Only used to show how long the pet
    has lived, so it has no effect on the statistics. */
 #define PET_MS_PER_GAME_HOUR            60000u
@@ -68,6 +72,7 @@ typedef enum {
     PET_ACTION_FEED,
     PET_ACTION_PLAY,
     PET_ACTION_CLEAN,
+    PET_ACTION_SLEEP,
     PET_ACTION_COUNT                /* keep last */
 } pet_action_t;
 
@@ -86,6 +91,7 @@ typedef struct {
     int16_t      happiness;         /* 0 = runs away,  PET_STAT_MAX = delighted */
 
     pet_state_t  state;
+    bool         sleeping;          /* alive but resting; see pet_sleep() */
 
     uint32_t     age_ms;            /* total simulated lifetime */
     uint32_t     last_tick_ms;      /* timestamp of the last pet_tick() */
@@ -117,11 +123,20 @@ bool pet_play(pet_t *pet, uint32_t now_ms);
 /* Clean the pet: happiness up. */
 bool pet_clean(pet_t *pet, uint32_t now_ms);
 
+/* Put the pet to sleep. Refused if finished or already sleeping. */
+bool pet_sleep(pet_t *pet, uint32_t now_ms);
+
+/* Wake without applying a care action. No-op if already awake. */
+void pet_wake(pet_t *pet, uint32_t now_ms);
+
 /* Restart after death or runaway, back to the starting figures. */
 void pet_restart(pet_t *pet, uint32_t now_ms);
 
 /* false once the pet is dead or has run away; the UI uses this to lock input. */
 bool pet_is_interactive(const pet_t *pet);
+
+/* true while an alive pet is sleeping. */
+bool pet_is_sleeping(const pet_t *pet);
 
 /* How long the pet has lived, as a game day (starting at 1) and hour (0-23).
    Frozen once the pet has died or left, back to Day 1 after pet_restart(). */

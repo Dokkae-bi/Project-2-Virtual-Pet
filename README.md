@@ -6,7 +6,7 @@ Tamagotchi-style virtual pet running on a **NUCLEO-L496ZG-P** with an
 > **Status:** **the pet runs.** `main.c` starts it, the joystick drives the menu,
 > and the sprite, both meters and the menu are drawn on the panel. Shaking the
 > MPU-6050 (I2C) plays with the pet, and a potentiometer (ADC) sets how much it
-> eats. 433 host checks pass with no board attached. What's left is the hardware
+> eats. 501 host checks pass with no board attached. What's left is the hardware
 > verification — **see
 > [`TODO.md`](TODO.md)**.
 
@@ -58,15 +58,20 @@ tuning knobs rather than magic numbers.
 
 ### Actions
 
-The three required interactions are offered on an in-game menu, opened with the
-joystick. Selecting one plays its animation and applies its effect immediately.
+The three required interactions plus **Sleep** are on an in-game menu, opened with
+the joystick. Selecting one applies its effect immediately (care actions also play
+their animation).
 
 | Action | Physical input | State effect | Animation |
 |---|---|---|---|
 | **Feed** (required) | menu item; the **potentiometer** selects the portion (1–5) | food +12 × portion, happiness +4 | `slime_eating` plus a squashing transform |
 | **Play** | menu item, or **shake the MPU-6050** | happiness +22, food −9 | jump transform of the mood sprite |
 | **Clean** | menu item | happiness +14 | wobble transform of the mood sprite |
+| **Sleep** | menu item (row becomes **Wake** while asleep) | sleeping: food −1 / 2.4 s, happiness +1 / 2.0 s; night tint + “Sleeping” | idle |
 | Idle | — | passive decay | 4-frame breathing loop; the mood picks the sprite |
+
+While asleep, SELECT still opens the menu; Feed/Play/Clean wake then apply; Wake
+only wakes; shake is wake + Play. The pet can still starve in bed.
 
 Only Feed affects the pet differently depending on a peripheral: the analog input
 chooses how much it eats, and the menu displays the current portion next to the
@@ -215,11 +220,12 @@ How it works:
 | Input | Action |
 |---|---|
 | Joystick UP / DOWN | move the menu selection (wraps at both ends) |
-| Joystick CENTER | open the menu, confirm the highlighted action, or restart a finished pet |
+| Joystick CENTER | open the menu (also while asleep), confirm the highlighted action, or restart a finished pet |
 | Joystick LEFT / RIGHT | reserved — no action yet |
 | User button B1 (`PC13`) | close the menu without acting (`PET_INPUT_BACK`) — **not wired up yet, see TODO.md** |
 | Potentiometer → ADC | selects the feeding portion, 1–5, shown beside the Feed row |
-| Shake the MPU-6050 (I2C2) | **Play** — on the pet screen only, at most once per 1.5 s |
+| Shake the MPU-6050 (I2C2) | **Play** (wakes first if asleep) — pet screen only, at most once per 1.5 s |
+| Menu Sleep / Wake | Sleep starts rest; while asleep the row reads Wake |
 
 Input handling lives in `Core/Src/pet_ui.c` and is driven by logical events
 (`pet_input_t`), so the whole control scheme is tested on a PC without the board.
@@ -264,7 +270,7 @@ VirtualPet/
 ├── Middlewares/                ST USB host library (compiled, NOT initialised)
 ├── USB_HOST/                   USB host application (unused — see PA9 warning)
 ├── sprites/                    generated RGB565 assets + preview PNGs
-├── tests/                      433 host checks, run on a PC with no board
+├── tests/                      501 host checks, run on a PC with no board
 ├── tools/
 │   └── png_to_rgb565.py        artwork → RGB565 converter
 └── docs/
@@ -385,19 +391,19 @@ line; `test_pet_view` also needs `-I sprites` and `sprites/slime_*.c`).
 
 | Suite | Checks |
 |---|---|
-| `test_pet_core` | 66 |
-| `test_pet_anim` | 54 |
+| `test_pet_core` | 89 |
+| `test_pet_anim` | 55 |
 | `test_pet_render` | 38 |
-| `test_pet_ui` | 60 |
+| `test_pet_ui` | 87 |
 | `test_pet_view` | 27 |
-| `test_pet_hud` | 52 |
-| `test_pet_ctl` | 39 |
+| `test_pet_hud` | 53 |
+| `test_pet_ctl` | 48 |
 | `test_pet_shake` | 16 |
 | `test_mpu6050_regs` | 11 |
 | `test_pet_pot` | 17 |
-| `test_ui_text` | 26 |
+| `test_ui_text` | 33 |
 | `test_pet_tilt` | 27 |
-| **Total** | **433** |
+| **Total** | **501** |
 
 ---
 

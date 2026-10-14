@@ -41,13 +41,22 @@ bool pet_ctl_action(pet_ctl_t *ctl, pet_action_t action, uint8_t portion,
         case PET_ACTION_FEED:  accepted = pet_feed(&ctl->pet, portion, now_ms); break;
         case PET_ACTION_PLAY:  accepted = pet_play(&ctl->pet, now_ms);          break;
         case PET_ACTION_CLEAN: accepted = pet_clean(&ctl->pet, now_ms);         break;
+        case PET_ACTION_SLEEP: accepted = pet_sleep(&ctl->pet, now_ms);         break;
         default:               return false;
     }
 
     if (accepted) {
+        /* Sleep stays on idle; care actions play their one-shots. */
         pet_anim_start(&ctl->anim, pet_anim_for_action(action), now_ms);
     }
     return accepted;
+}
+
+void pet_ctl_wake(pet_ctl_t *ctl, uint32_t now_ms)
+{
+    if (ctl == NULL) { return; }
+    pet_wake(&ctl->pet, now_ms);
+    pet_anim_start(&ctl->anim, PET_ANIM_IDLE, now_ms);
 }
 
 void pet_ctl_restart(pet_ctl_t *ctl, uint32_t now_ms)

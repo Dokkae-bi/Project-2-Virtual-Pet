@@ -49,6 +49,7 @@ typedef struct {
     pet_action_t action;    /* committed action, or PET_ACTION_NONE */
     bool         restart;   /* the user asked to restart a finished pet */
     bool         redraw;    /* the screen changed since the last call */
+    bool         wake;      /* wake only (asleep menu Wake), no care action */
 } pet_ui_result_t;
 
 /* Start on the pet screen with the cursor at the top. */
@@ -59,18 +60,25 @@ void pet_ui_init(pet_ui_t *ui);
  *
  * pet is the live model. A dead or runaway pet locks the menu out and turns
  * SELECT into a restart request, which is how the restart procedure is reached
- * from the UI.
+ * from the UI. While sleeping, SELECT still opens the menu; Wake is a menu row.
  */
 pet_ui_result_t pet_ui_handle(pet_ui_t *ui, pet_input_t input, const pet_t *pet);
 
 /* Number of rows in the action menu. */
 uint8_t pet_ui_item_count(void);
 
-/* Label for a menu row, for drawing. Never NULL; out of range clamps. */
-const char *pet_ui_item_label(uint8_t index);
+/*
+ * Label for a menu row, for drawing. Never NULL; out of range clamps.
+ * When the pet is sleeping the Sleep row reads "Wake".
+ */
+const char *pet_ui_item_label(uint8_t index, const pet_t *pet);
 
-/* Action a menu row commits. Out of range returns PET_ACTION_NONE. */
-pet_action_t pet_ui_item_action(uint8_t index);
+/*
+ * Action a menu row commits when awake. The Sleep row returns PET_ACTION_SLEEP
+ * when awake and PET_ACTION_NONE when asleep (use result.wake instead).
+ * Out of range returns PET_ACTION_NONE.
+ */
+pet_action_t pet_ui_item_action(uint8_t index, const pet_t *pet);
 
 /* Current screen, cursor and portion, for the renderer. */
 pet_screen_t pet_ui_screen(const pet_ui_t *ui);

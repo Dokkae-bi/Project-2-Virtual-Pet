@@ -60,10 +60,15 @@ static void check_string(const char *s, uint16_t x)
 
 static void test_menu_labels(void)
 {
+    pet_t p;
+
     section("Menu labels");
+    pet_init(&p, 0);
     for (uint8_t i = 0u; i < pet_ui_item_count(); i++) {
-        check_string(pet_ui_item_label(i), PET_HUD_MENU_X + 12u);
+        check_string(pet_ui_item_label(i, &p), PET_HUD_MENU_X + 12u);
     }
+    CHECK(pet_sleep(&p, 0), "pet can sleep for the Wake label check");
+    check_string(pet_ui_item_label(3, &p), PET_HUD_MENU_X + 12u);
     check_string("x1", PET_HUD_MENU_X + PET_HUD_MENU_W - 36u);
     check_string("x5", PET_HUD_MENU_X + PET_HUD_MENU_W - 36u);
 }
@@ -75,6 +80,7 @@ static void test_ending_text(void)
     check_string(PET_HUD_TEXT_RAN_AWAY, PET_HUD_MENU_X);
     check_string(PET_HUD_TEXT_RESTART1, PET_HUD_MENU_X);
     check_string(PET_HUD_TEXT_RESTART2, PET_HUD_MENU_X);
+    check_string(PET_HUD_TEXT_SLEEPING, PET_HUD_MENU_X);
 }
 
 static void test_name_and_age(void)

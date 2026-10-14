@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 
-/* The three required interactions, in menu order. */
+/* The care interactions plus Sleep, in menu order. */
 static const struct {
     pet_action_t action;
     const char  *label;
@@ -14,26 +14,34 @@ static const struct {
     { PET_ACTION_FEED,  "Feed"  },
     { PET_ACTION_PLAY,  "Play"  },
     { PET_ACTION_CLEAN, "Clean" },
+    { PET_ACTION_SLEEP, "Sleep" },
 };
 
 #define UI_ITEM_COUNT ((uint8_t)(sizeof(UI_ITEMS) / sizeof(UI_ITEMS[0])))
+#define UI_SLEEP_ROW  (UI_ITEM_COUNT - 1u)
 
 uint8_t pet_ui_item_count(void)
 {
     return UI_ITEM_COUNT;
 }
 
-const char *pet_ui_item_label(uint8_t index)
+const char *pet_ui_item_label(uint8_t index, const pet_t *pet)
 {
     if (index >= UI_ITEM_COUNT) {
         index = (uint8_t)(UI_ITEM_COUNT - 1u);
     }
+    if ((index == UI_SLEEP_ROW) && pet_is_sleeping(pet)) {
+        return "Wake";
+    }
     return UI_ITEMS[index].label;
 }
 
-pet_action_t pet_ui_item_action(uint8_t index)
+pet_action_t pet_ui_item_action(uint8_t index, const pet_t *pet)
 {
     if (index >= UI_ITEM_COUNT) {
+        return PET_ACTION_NONE;
+    }
+    if ((index == UI_SLEEP_ROW) && pet_is_sleeping(pet)) {
         return PET_ACTION_NONE;
     }
     return UI_ITEMS[index].action;
@@ -90,7 +98,12 @@ void pet_ui_init(pet_ui_t *ui)
 
 pet_ui_result_t pet_ui_handle(pet_ui_t *ui, pet_input_t input, const pet_t *pet)
 {
-    pet_ui_result_t result = { PET_ACTION_NONE, false, false };
+    pet_ui_result_t result = {
+        .action  = PET_ACTION_NONE,
+        .restart = false,
+        .redraw  = false,
+        .wake    = false,
+    };
 
     if (ui == NULL) {
         return result;
@@ -138,9 +151,13 @@ pet_ui_result_t pet_ui_handle(pet_ui_t *ui, pet_input_t input, const pet_t *pet)
             break;
 
         case PET_INPUT_SELECT:
-            result.action = UI_ITEMS[ui->cursor].action;
             result.redraw = true;
             ui->screen = PET_SCREEN_PET;
+            if ((ui->cursor == UI_SLEEP_ROW) && pet_is_sleeping(pet)) {
+                result.wake = true;
+            } else {
+                result.action = UI_ITEMS[ui->cursor].action;
+            }
             break;
 
         case PET_INPUT_BACK:

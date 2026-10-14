@@ -122,6 +122,7 @@ static void test_action_mapping(void)
     CHECK(pet_anim_for_action(PET_ACTION_FEED)  == PET_ANIM_FEED,  "FEED -> FEED");
     CHECK(pet_anim_for_action(PET_ACTION_PLAY)  == PET_ANIM_PLAY,  "PLAY -> PLAY");
     CHECK(pet_anim_for_action(PET_ACTION_CLEAN) == PET_ANIM_CLEAN, "CLEAN -> CLEAN");
+    CHECK(pet_anim_for_action(PET_ACTION_SLEEP) == PET_ANIM_IDLE,  "SLEEP -> IDLE");
     CHECK(pet_anim_for_action(PET_ACTION_NONE)  == PET_ANIM_IDLE,  "no action -> IDLE");
 }
 

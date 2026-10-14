@@ -51,10 +51,12 @@
 
 /* --- action menu ---------------------------------------------------------- */
 
+/* Four rows (Feed/Play/Clean/Sleep). Row height 20 keeps the block on-panel
+ * under the happiness meter (ends at y 238). */
 #define PET_HUD_MENU_X          20u
-#define PET_HUD_MENU_Y          248u
+#define PET_HUD_MENU_Y          240u
 #define PET_HUD_MENU_W          200u
-#define PET_HUD_MENU_ROW_H      24u
+#define PET_HUD_MENU_ROW_H      20u
 
 /* --- name and age, centred above the sprite ------------------------------- */
 
@@ -84,8 +86,12 @@
 
 #define PET_HUD_COL_TRACK       0x2966u   /* #2A2F36  empty part of the bar */
 #define PET_HUD_COL_PANEL       0x1946u   /* #1E2A32  same as the stage */
+#define PET_HUD_COL_NIGHT       0x10A3u   /* darker panel while sleeping */
 #define PET_HUD_COL_TEXT        0xD7FEu   /* #D6FFF6  near-white */
 #define PET_HUD_COL_SELECTED    0x2C70u   /* #2A8C80  highlighted menu row */
+
+/* Shown in the lower block when asleep and the menu is closed. */
+#define PET_HUD_TEXT_SLEEPING   "Sleeping"
 
 /* Band edges. Both meters count up towards good. */
 #define PET_HUD_GOOD_AT         70

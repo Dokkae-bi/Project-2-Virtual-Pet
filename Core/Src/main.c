@@ -484,6 +484,10 @@ int main(void)
       pet_tilt_init(&g_tilt, now);
       pet_screen_set_pet_x(g_tilt.x);
     }
+    else if (result.wake)
+    {
+      pet_ctl_wake(&g_pet, now);
+    }
     else if (result.action != PET_ACTION_NONE)
     {
       (void)pet_ctl_action(&g_pet, result.action, g_portion, now);

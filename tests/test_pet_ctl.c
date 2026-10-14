@@ -164,7 +164,31 @@ static void test_null_is_safe(void)
     pet_ctl_tick(NULL, 0);
     CHECK(!pet_ctl_action(NULL, PET_ACTION_FEED, 1, 0), "an action on NULL returns false");
     pet_ctl_restart(NULL, 0);
+    pet_ctl_wake(NULL, 0);
     CHECK(1, "none of the NULL calls crashed");
+}
+
+static void test_sleep(void)
+{
+    pet_ctl_t c;
+
+    section("Sleep action");
+    pet_ctl_init(&c, 0);
+    CHECK(pet_ctl_action(&c, PET_ACTION_SLEEP, 1, 1000), "sleep is accepted");
+    CHECK(pet_is_sleeping(&c.pet), "the pet is sleeping");
+    CHECK(c.anim.id == PET_ANIM_IDLE, "sleep stays on idle");
+
+    section("Play while asleep wakes and plays");
+    CHECK(pet_ctl_action(&c, PET_ACTION_PLAY, 1, 2000), "play is accepted while asleep");
+    CHECK(!pet_is_sleeping(&c.pet), "play woke the pet");
+    CHECK(c.anim.id == PET_ANIM_PLAY, "the play animation started");
+
+    section("Wake without a care action");
+    pet_ctl_init(&c, 0);
+    CHECK(pet_ctl_action(&c, PET_ACTION_SLEEP, 1, 0), "asleep again");
+    pet_ctl_wake(&c, 1000);
+    CHECK(!pet_is_sleeping(&c.pet), "wake cleared sleeping");
+    CHECK(c.anim.id == PET_ANIM_IDLE, "wake returns to idle");
 }
 
 int main(void)
@@ -179,6 +203,7 @@ int main(void)
     test_animation_returns_to_idle();
     test_restart();
     test_null_is_safe();
+    test_sleep();
 
     printf("\n----------------------------------------\n");
     printf("%d passed, %d failed\n", g_pass, g_fail);
