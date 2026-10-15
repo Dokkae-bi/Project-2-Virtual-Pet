@@ -70,6 +70,7 @@ static uint8_t g_portion = PET_FEED_PORTION_MIN;
 ADC_HandleTypeDef hadc3;
 static pet_pot_t  g_pot;
 static uint32_t   g_pot_next_ms = 0u;
+volatile uint16_t g_pot_adc_raw;
 
 /* MPU-6050 shake sensor. LD2 shows whether it is answering. */
 #define SHAKE_SAMPLE_MS  10u     /* 100 Hz, matches the sensor's output rate */
@@ -416,7 +417,9 @@ static void Pot_Poll(uint32_t now)
   }
   if (HAL_ADC_PollForConversion(&hadc3, POT_TIMEOUT_MS) == HAL_OK)
   {
-    const uint8_t portion = pet_pot_update(&g_pot, (uint16_t)HAL_ADC_GetValue(&hadc3));
+    g_pot_adc_raw = (uint16_t)HAL_ADC_GetValue(&hadc3);
+    const uint16_t reversed = (uint16_t)(PET_POT_ADC_MAX - g_pot_adc_raw);
+    const uint8_t portion = pet_pot_update(&g_pot, reversed);
     if (portion != g_portion)
     {
       g_portion = portion;
