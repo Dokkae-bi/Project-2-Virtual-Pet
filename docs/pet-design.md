@@ -180,10 +180,10 @@ of flash is left unused.
 | HUD icons (berry, heart) | ✅ drawn and converted |
 | **`main.c` integration** | ✅ **done — the pet runs** |
 | User button B1 wired to `PET_INPUT_BACK` | ❌ not wired up |
-| I2C input: MPU-6050 shake → Play (`pet_shake`, `mpu6050`) | ✅ implemented, 27 host checks — not yet on hardware |
-| Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, 17 host checks — not yet on hardware |
-| Sleep / night (menu Sleep, wake paths, night tint) | ✅ implemented — not yet on hardware |
-| Verified on real hardware | ❌ blocked on the unsoldered headers |
+| I2C input: MPU-6050 tilt and shake (`pet_shake`, `mpu6050`) | ✅ implemented; tilt exercised on hardware; shake/recovery edge cases remain |
+| Analog input: potentiometer → Feed portion (`pet_pot`) | ✅ implemented, exercised on hardware |
+| Sleep / night (menu Sleep, wake paths, night tint) | ✅ implemented; hardware edge cases remain |
+| Verified on real hardware | ✅ display/menu, MPU-6050 tilt, and potentiometer ADC/portion behavior |
 
 **501 host checks total, all passing.** See [`../TODO.md`](../TODO.md) for what is
 still outstanding.

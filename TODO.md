@@ -1,12 +1,12 @@
 # Project 2 — what's left to do
 
-**As of 2026-10-13.** The pet runs. `main.c` starts it, the joystick drives the
-menu, and the sprite, both meters and the menu are drawn on the panel. **501 host
+**As of 2026-10-14.** The pet runs on the board: the display/menu, MPU-6050 tilt
+input, and potentiometer ADC/portion behavior have been exercised. **501 host
 checks pass with no board attached.**
 
-Both required peripherals are in the code (the MPU-6050 on I2C and the potentiometer
-on the ADC). What remains is the user button, the paperwork, and verifying any of
-it on hardware.
+Both required peripherals are implemented and have been exercised on hardware.
+What remains is the user button, the paperwork, and additional peripheral edge-case
+checks.
 
 ---
 
@@ -59,7 +59,7 @@ handout says "in addition to the LCD and its built-in joystick".
 
 **The digital device is done in code: a GY-521 / MPU-6050 on I2C2 (`PF1` SCL / `PF0` SDA),
 shake it to Play.** Wiring, behaviour and tuning are in README §2 "MPU-6050 shake
-sensor". Still to do on it, once the headers are soldered:
+sensor". Basic tilt operation has been confirmed; these further checks remain:
 
 - [ ] wire it (README table) and confirm `LD2` lights within ~1 s of boot
 - [ ] three hard shakes → the pet jumps; non-stop shaking → at most one Play per 1.5 s
@@ -68,9 +68,9 @@ sensor". Still to do on it, once the headers are soldered:
 - [ ] wiggle the VCC wire while shaking, and press the board's RESET mid-shake →
       within ~1 s `LD2` is back on and shaking works (tests the bus-clear in
       `I2C2_Recover` and the sleep check)
-- [ ] tipping the board left/right slides the slime that way (if backwards, flip
-      `PET_TILT_DIR` in `pet_tilt.h`); level it and it stops; it stops at both edges
-      without leaving a trail; tune `PET_TILT_DEAD_COUNTS` / `PET_TILT_MAX_STEP`
+- [x] tipping the board moves the slime; the direction was corrected in firmware
+      with `PET_TILT_DIR`; verify the corrected direction after flashing, then
+      check leveling and both screen edges for clean stops
 - [ ] shaking with the menu open, or with the pet dead/run away, does nothing
 - [ ] walking around or tapping the table does not trigger Play — if it does, raise
       `PET_SHAKE_JOLT_MG` in `pet_shake.h`; if real shakes are missed, lower it
@@ -80,12 +80,13 @@ sensor". Still to do on it, once the headers are soldered:
       compare with `mpu6050_who_am_i_ok()`; otherwise check SDA/SCL aren't swapped.
       The I2C `TIMING` value `0x60420F13` is calculated, not yet measured.
 
-**The analog input is done in code too: a potentiometer on `PF3` (ADC3_IN6) sets
-the Feed portion, 1–5.** Wiring and behaviour are in README §2 "Potentiometer".
-Still to do on it, once the headers are soldered:
+**The analog input is implemented and exercised on hardware: a potentiometer on
+`PF3` (ADC3_IN6) sets the Feed portion, 1–5.** Wiring and behaviour are in README
+§2 "Potentiometer". These further checks remain:
 
-- [ ] wire it (README table: ends to `PE11` (high) and `PF15` (low), wiper to `PF3`, **never 5 V**)
-- [ ] turning the knob end to end steps the number beside Feed through 1–5
+- [x] wire it (README table: ends to `PE11` (high) and `PF15` (low), wiper to
+      `PF3`, **never 5 V**) and confirm the ADC reading responds to the knob
+- [x] reverse the firmware mapping so clockwise raises the feeding portion
 - [ ] the number does not flicker with the knob resting near a band edge
 - [ ] Feed at portion 1 and at portion 5 → food rises by 12 and by 60
 - [ ] if it stays on 1 whatever the knob does: check the wiper is on `PF3` and
@@ -217,7 +218,7 @@ Expected totals: **89 / 55 / 38 / 87 / 27 / 53 / 48 / 16 / 11 / 17 / 33 / 27 = 5
 cmake --build build/Debug
 ```
 
-Current build: **78,760 bytes of flash, 12,352 bytes of RAM.**
+Current build: **95,464 bytes of flash, 12,608 bytes of RAM.**
 
 **Regenerating artwork** after changing it:
 
